@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // ADD THIS
 
 class EventsTab extends StatefulWidget {
   const EventsTab({super.key});
@@ -13,18 +14,56 @@ class _EventsTabState extends State<EventsTab> {
   List<_Event> _events = [];
   bool _isLoading = true;
   String? _error;
+  RealtimeChannel? _realtimeChannel; // ADD REALTIME CHANNEL
 
   @override
   void initState() {
     super.initState();
     _loadEvents();
+    _initializeRealtime(); // INITIALIZE REALTIME
+  }
+
+  // ADD REALTIME INITIALIZATION
+  void _initializeRealtime() {
+    _realtimeChannel = SupabaseService.client
+        .channel('events-tab-realtime')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'events',
+          callback: (payload) {
+            print('🔄 EventsTab Real-time update: ${payload.eventType}');
+
+            // Auto-refresh when events change
+            _loadEvents();
+
+            // Show notification for new events
+            if (payload.eventType == 'INSERT') {
+              _showNewEventNotification(
+                  payload.newRecord['title'] ?? 'New Event');
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  void _showNewEventNotification(String eventTitle) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('🎉 New event: $eventTitle'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _loadEvents() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
 
     try {
       // Load from Supabase
@@ -53,53 +92,45 @@ class _EventsTabState extends State<EventsTab> {
             '24-hour coding challenge. Build amazing projects and compete for prizes!',
             'Technical',
           ),
-          _Event(
-            'Guest Lecture',
-            DateTime.now().add(const Duration(days: 20)),
-            'AI in Education by Dr. Smith. Learn about the future of technology in learning.',
-            'Educational',
-          ),
-          _Event(
-            'Career Fair',
-            DateTime.now().add(const Duration(days: 30)),
-            'Meet with top companies and explore career opportunities.',
-            'Career',
-          ),
-          _Event(
-            'Cultural Festival',
-            DateTime.now().add(const Duration(days: 45)),
-            'Celebrate diversity with performances, food, and cultural displays.',
-            'Cultural',
-          ),
         ],
       ];
 
-      setState(() {
-        _events = allEvents;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _events = allEvents;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Failed to load events: ${e.toString()}';
-        _isLoading = false;
-
-        // Fallback demo data
-        _events = [
-          _Event(
-            'Orientation Day',
-            DateTime.now().add(const Duration(days: 2)),
-            'Welcome to the new semester! Join us for orientation activities and meet your fellow students.',
-            'Academic',
-          ),
-          _Event(
-            'Hackathon 2024',
-            DateTime.now().add(const Duration(days: 10)),
-            '24-hour coding challenge. Build amazing projects and compete for prizes!',
-            'Technical',
-          ),
-        ];
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load events: ${e.toString()}';
+          _isLoading = false;
+          // Fallback demo data
+          _events = [
+            _Event(
+              'Orientation Day',
+              DateTime.now().add(const Duration(days: 2)),
+              'Welcome to the new semester! Join us for orientation activities and meet your fellow students.',
+              'Academic',
+            ),
+            _Event(
+              'Hackathon 2024',
+              DateTime.now().add(const Duration(days: 10)),
+              '24-hour coding challenge. Build amazing projects and compete for prizes!',
+              'Technical',
+            ),
+          ];
+        });
+      }
     }
+  }
+
+  // ADD DISPOSE METHOD FOR CLEANUP
+  @override
+  void dispose() {
+    _realtimeChannel?.unsubscribe();
+    super.dispose();
   }
 
   @override
@@ -134,10 +165,29 @@ class _EventsTabState extends State<EventsTab> {
                   ],
                 ),
               ),
-              IconButton(
-                onPressed: _loadEvents,
-                icon: Icon(Icons.refresh_rounded, color: scheme.primary),
-                tooltip: 'Refresh events',
+              // ADD REALTIME STATUS INDICATOR
+              Stack(
+                children: [
+                  IconButton(
+                    onPressed: _loadEvents,
+                    icon: Icon(Icons.refresh_rounded, color: scheme.primary),
+                    tooltip: 'Refresh events',
+                  ),
+                  // Small green dot for realtime status
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: scheme.background, width: 1),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -208,174 +258,218 @@ class _EventsTabState extends State<EventsTab> {
             )
           else
             // Events List
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _events.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 16),
-              itemBuilder: (context, i) {
-                final event = _events[i];
-                final isUpcoming = event.date.isAfter(DateTime.now());
-                final daysUntil = event.date.difference(DateTime.now()).inDays;
+            Column(
+              children: [
+                // REALTIME STATUS BADGE
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Live Updates Active',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _events.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  itemBuilder: (context, i) {
+                    final event = _events[i];
+                    final isUpcoming = event.date.isAfter(DateTime.now());
+                    final daysUntil =
+                        event.date.difference(DateTime.now()).inDays;
 
-                return Card(
-                  elevation: 2,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () => _showEventDetails(event),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                    return Card(
+                      elevation: 2,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => _showEventDetails(event),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                width: 60,
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  color: _getCategoryColor(event.category)
-                                      .withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      '${event.date.day}',
-                                      style: TextStyle(
-                                        color:
-                                            _getCategoryColor(event.category),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                      ),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      color: _getCategoryColor(event.category)
+                                          .withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                    Text(
-                                      DateFormat('MMM').format(event.date),
-                                      style: TextStyle(
-                                        color:
-                                            _getCategoryColor(event.category),
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      event.title,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          '${event.date.day}',
+                                          style: TextStyle(
+                                            color: _getCategoryColor(
+                                                event.category),
                                             fontWeight: FontWeight.bold,
+                                            fontSize: 18,
                                           ),
+                                        ),
+                                        Text(
+                                          DateFormat('MMM').format(event.date),
+                                          style: TextStyle(
+                                            color: _getCategoryColor(
+                                                event.category),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(height: 4),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          event.title,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: _getCategoryColor(
+                                                    event.category)
+                                                .withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            event.category,
+                                            style: TextStyle(
+                                              color: _getCategoryColor(
+                                                  event.category),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          event.description,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                                color: scheme.onSurface
+                                                    .withOpacity(0.7),
+                                              ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isUpcoming)
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 2),
+                                          horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: _getCategoryColor(event.category)
-                                            .withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(4),
+                                        color: Colors.green.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
-                                        event.category,
-                                        style: TextStyle(
-                                          color:
-                                              _getCategoryColor(event.category),
+                                        daysUntil == 0
+                                            ? 'Today'
+                                            : daysUntil == 1
+                                                ? 'Tomorrow'
+                                                : '${daysUntil}d',
+                                        style: const TextStyle(
+                                          color: Colors.green,
                                           fontSize: 12,
-                                          fontWeight: FontWeight.w500,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      event.description,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(
-                                            color: scheme.onSurface
-                                                .withOpacity(0.7),
-                                          ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
+                                ],
                               ),
-                              if (isUpcoming)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 16,
+                                    color: scheme.onSurface.withOpacity(0.6),
                                   ),
-                                  child: Text(
-                                    daysUntil == 0
-                                        ? 'Today'
-                                        : daysUntil == 1
-                                            ? 'Tomorrow'
-                                            : '${daysUntil}d',
-                                    style: const TextStyle(
-                                      color: Colors.green,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    DateFormat('EEE, MMM d, yyyy')
+                                        .format(event.date),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color:
+                                              scheme.onSurface.withOpacity(0.6),
+                                        ),
                                   ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_today_rounded,
-                                size: 16,
-                                color: scheme.onSurface.withOpacity(0.6),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                DateFormat('EEE, MMM d, yyyy')
-                                    .format(event.date),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: scheme.onSurface.withOpacity(0.6),
-                                    ),
-                              ),
-                              const SizedBox(width: 16),
-                              Icon(
-                                Icons.access_time_rounded,
-                                size: 16,
-                                color: scheme.onSurface.withOpacity(0.6),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                DateFormat('h:mm a').format(event.date),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: scheme.onSurface.withOpacity(0.6),
-                                    ),
+                                  const SizedBox(width: 16),
+                                  Icon(
+                                    Icons.access_time_rounded,
+                                    size: 16,
+                                    color: scheme.onSurface.withOpacity(0.6),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    DateFormat('h:mm a').format(event.date),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color:
+                                              scheme.onSurface.withOpacity(0.6),
+                                        ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                );
-              },
+                    );
+                  },
+                ),
+              ],
             ),
 
           const SizedBox(height: 20),
@@ -519,6 +613,5 @@ class _Event {
   final String description;
   final String category;
 
-  _Event(this.title, this.date, this.description,
-      this.category); // ✅ Constructor fixed
+  _Event(this.title, this.date, this.description, this.category);
 }

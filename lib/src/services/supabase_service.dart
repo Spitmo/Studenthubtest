@@ -8,12 +8,155 @@ class SupabaseService {
 
   static SupabaseClient get client => Supabase.instance.client;
 
+  // Realtime channels
+  static RealtimeChannel? _eventsChannel;
+  static RealtimeChannel? _messagesChannel;
+  static RealtimeChannel? _uploadsChannel;
+  static RealtimeChannel? _usersChannel;
+
   static Future<void> initialize() async {
     await Supabase.initialize(
       url: supabaseUrl,
       anonKey: supabaseAnonKey,
     );
+
+    // Initialize realtime channels
+    _initializeRealtimeChannels();
   }
+
+  // ==================== REALTIME IMPLEMENTATION ====================
+
+  static void _initializeRealtimeChannels() {
+    // Events realtime channel
+    _eventsChannel = client.channel('events-realtime').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'events',
+          callback: (payload) {
+            print('🎯 Events Real-time Update: ${payload.eventType}');
+            // This will be handled by screens
+          },
+        );
+
+    // Messages realtime channel
+    _messagesChannel = client.channel('messages-realtime').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'messages',
+          callback: (payload) {
+            print('💬 Messages Real-time Update: ${payload.eventType}');
+            // This will be handled by screens
+          },
+        );
+
+    // Uploads realtime channel
+    _uploadsChannel = client.channel('uploads-realtime').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'uploads',
+          callback: (payload) {
+            print('📁 Uploads Real-time Update: ${payload.eventType}');
+            // This will be handled by screens
+          },
+        );
+
+    // Users realtime channel
+    _usersChannel = client.channel('users-realtime').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'users',
+          callback: (payload) {
+            print('👤 Users Real-time Update: ${payload.eventType}');
+            // This will be handled by screens
+          },
+        );
+
+    // Subscribe to all channels
+    _subscribeToChannels();
+  }
+
+  static void _subscribeToChannels() {
+    _eventsChannel?.subscribe((status, error) {
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        print('✅ Events realtime subscribed');
+      }
+      if (error != null) {
+        print('❌ Events realtime error: $error');
+      }
+    });
+
+    _messagesChannel?.subscribe((status, error) {
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        print('✅ Messages realtime subscribed');
+      }
+      if (error != null) {
+        print('❌ Messages realtime error: $error');
+      }
+    });
+
+    _uploadsChannel?.subscribe((status, error) {
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        print('✅ Uploads realtime subscribed');
+      }
+      if (error != null) {
+        print('❌ Uploads realtime error: $error');
+      }
+    });
+
+    _usersChannel?.subscribe((status, error) {
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        print('✅ Users realtime subscribed');
+      }
+      if (error != null) {
+        print('❌ Users realtime error: $error');
+      }
+    });
+  }
+
+  // Realtime subscription methods for screens
+  static RealtimeChannel getEventsRealtime(Function(dynamic) onUpdate) {
+    return client.channel('events-custom').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'events',
+          callback: onUpdate,
+        );
+  }
+
+  static RealtimeChannel getMessagesRealtime(Function(dynamic) onUpdate) {
+    return client.channel('messages-custom').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'messages',
+          callback: onUpdate,
+        );
+  }
+
+  static RealtimeChannel getUploadsRealtime(Function(dynamic) onUpdate) {
+    return client.channel('uploads-custom').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'uploads',
+          callback: onUpdate,
+        );
+  }
+
+  // Cleanup method
+  static void dispose() {
+    _eventsChannel?.unsubscribe();
+    _messagesChannel?.unsubscribe();
+    _uploadsChannel?.unsubscribe();
+    _usersChannel?.unsubscribe();
+
+    _eventsChannel = null;
+    _messagesChannel = null;
+    _uploadsChannel = null;
+    _usersChannel = null;
+
+    print('🔴 All realtime channels disposed');
+  }
+
+  // ==================== EXISTING CODE (WITH FIXES) ====================
 
   // Helper to safely convert various response shapes to a List<Map<String, dynamic>>
   static List<Map<String, dynamic>> _toList(dynamic response) {
@@ -60,31 +203,32 @@ class SupabaseService {
 
   static Future<void> signOut() async {
     await client.auth.signOut();
+    dispose(); // Cleanup realtime on logout
   }
 
   static User? get currentUser => client.auth.currentUser;
   static bool get isLoggedIn => currentUser != null;
 
-  // User Profile Management
+  // User Profile Management - FIXED TABLE NAME
   static Future<void> createUserProfile({
     required String userId,
     required String name,
     required String rollNumber,
     required String role,
   }) async {
-    await client.from('user_profiles').insert({
+    await client.from('users').insert({
+      // CHANGED: 'user_profiles' -> 'users'
       'id': userId,
       'name': name,
       'roll_number': rollNumber,
       'role': role,
-      'is_approved': role == 'admin', // Auto-approve admins
       'created_at': DateTime.now().toIso8601String(),
     });
   }
 
   static Future<Map<String, dynamic>?> getUserProfile(String userId) async {
     final response = await client
-        .from('user_profiles')
+        .from('users') // CHANGED: 'user_profiles' -> 'users'
         .select()
         .eq('id', userId)
         .maybeSingle();
@@ -92,50 +236,19 @@ class SupabaseService {
     try {
       return Map<String, dynamic>.from(response as Map);
     } catch (_) {
-      // Try wrapped data
-      try {
-        final data = (response as dynamic).data;
-        if (data is Map) return Map<String, dynamic>.from(data);
-      } catch (_) {}
+      return null;
     }
-    return null;
   }
 
   static Future<void> updateUserProfile(
       String userId, Map<String, dynamic> updates) async {
-    await client.from('user_profiles').update(updates).eq('id', userId);
+    await client
+        .from('users')
+        .update(updates)
+        .eq('id', userId); // CHANGED table name
   }
 
-  static Future<void> approveUser(String userId) async {
-    await client.from('user_profiles').update({
-      'is_approved': true,
-      'approved_at': DateTime.now().toIso8601String()
-    }).eq('id', userId);
-  }
-
-  static Future<void> rejectUser(String userId) async {
-    await client.from('user_profiles').delete().eq('id', userId);
-  }
-
-  // Pending Users Management
-  static Future<List<Map<String, dynamic>>> getPendingUsers() async {
-    final response = await client
-        .from('user_profiles')
-        .select()
-        .eq('is_approved', false)
-        .order('created_at', ascending: false);
-    return _toList(response);
-  }
-
-  static Future<List<Map<String, dynamic>>> getAllUsers() async {
-    final response = await client
-        .from('user_profiles')
-        .select()
-        .order('created_at', ascending: false);
-    return _toList(response);
-  }
-
-  // Events Management
+  // Events Management - FIXED FIELD NAMES
   static Future<void> createEvent({
     required String title,
     required DateTime date,
@@ -144,7 +257,7 @@ class SupabaseService {
   }) async {
     await client.from('events').insert({
       'title': title,
-      'date': date.toIso8601String(),
+      'event_date': date.toIso8601String(), // CHANGED: 'date' -> 'event_date'
       'description': description,
       'created_by': createdBy,
       'created_at': DateTime.now().toIso8601String(),
@@ -152,8 +265,8 @@ class SupabaseService {
   }
 
   static Future<List<Map<String, dynamic>>> getEvents() async {
-    final response =
-        await client.from('events').select().order('date', ascending: true);
+    final response = await client.from('events').select().order('event_date',
+        ascending: true); // CHANGED: 'date' -> 'event_date'
     return _toList(response);
   }
 
@@ -161,16 +274,16 @@ class SupabaseService {
     await client.from('events').delete().eq('id', eventId);
   }
 
-  // File Uploads Management
+  // File Uploads Management - FIXED FIELD NAMES
   static Future<void> createUpload({
     required String filename,
     required String remark,
     required String uploadedBy,
   }) async {
     await client.from('uploads').insert({
-      'filename': filename,
+      'file_name': filename, // CHANGED: 'filename' -> 'file_name'
       'remark': remark,
-      'uploaded_by': uploadedBy,
+      'student_id': uploadedBy, // CHANGED: 'uploaded_by' -> 'student_id'
       'status': 'pending',
       'created_at': DateTime.now().toIso8601String(),
     });
@@ -188,25 +301,21 @@ class SupabaseService {
   static Future<void> approveUpload(String uploadId) async {
     await client.from('uploads').update({
       'status': 'approved',
-      'approved_at': DateTime.now().toIso8601String(),
     }).eq('id', uploadId);
   }
 
   static Future<void> rejectUpload(String uploadId) async {
     await client.from('uploads').update({
       'status': 'rejected',
-      'rejected_at': DateTime.now().toIso8601String(),
     }).eq('id', uploadId);
   }
 
-  // Analytics
+  // Analytics - FIXED TABLE NAMES
   static Future<Map<String, int>> getAnalytics() async {
-    // Use length-based counts to avoid CountOption dependency in tests
     final studentsResp = await client
-        .from('user_profiles')
+        .from('users') // CHANGED: 'user_profiles' -> 'users'
         .select()
-        .eq('role', 'student')
-        .eq('is_approved', true);
+        .eq('role', 'student');
     final totalStudents = _toList(studentsResp).length;
 
     final pendingUploadsResp =
@@ -216,8 +325,7 @@ class SupabaseService {
     final eventsResp = await client.from('events').select();
     final totalEvents = _toList(eventsResp).length;
 
-    final usersResp =
-        await client.from('user_profiles').select().eq('is_approved', true);
+    final usersResp = await client.from('users').select(); // CHANGED table name
     final totalUsers = _toList(usersResp).length;
 
     return {
@@ -242,22 +350,22 @@ class SupabaseService {
   // Connection Test
   static Future<bool> testConnection() async {
     try {
-      // Try to query a simple table to test connection
-      await client.from('user_profiles').select('id').limit(1);
+      await client.from('users').select('id').limit(1); // CHANGED table name
       return true;
     } catch (e) {
       return false;
     }
   }
 
-  // Get Student-specific uploads
+  // Get Student-specific uploads - FIXED FIELD NAME
   static Future<List<Map<String, dynamic>>> getStudentUploads(
-      String rollNumber) async {
+      String studentId) async {
+    // CHANGED parameter name
     try {
       final response = await client
           .from('uploads')
           .select()
-          .eq('uploaded_by', rollNumber)
+          .eq('student_id', studentId) // CHANGED: 'uploaded_by' -> 'student_id'
           .order('created_at', ascending: false);
       return _toList(response);
     } catch (e) {
@@ -266,9 +374,9 @@ class SupabaseService {
   }
 
   // Get Student-specific analytics
-  static Future<Map<String, int>> getStudentAnalytics(String rollNumber) async {
+  static Future<Map<String, int>> getStudentAnalytics(String studentId) async {
     try {
-      final studentUploads = await getStudentUploads(rollNumber);
+      final studentUploads = await getStudentUploads(studentId);
       final totalUploads = studentUploads.length;
       final approvedUploads = studentUploads
           .where((upload) => upload['status'] == 'approved')

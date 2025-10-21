@@ -15,6 +15,20 @@ class SupabaseService {
     );
   }
 
+  // Helper to safely convert various response shapes to a List<Map<String, dynamic>>
+  static List<Map<String, dynamic>> _toList(dynamic response) {
+    if (response == null) return [];
+    if (response is List) {
+      return List<Map<String, dynamic>>.from(response);
+    }
+    // Some Supabase responses wrap data in `.data`
+    try {
+      final data = (response as dynamic).data;
+      if (data is List) return List<Map<String, dynamic>>.from(data);
+    } catch (_) {}
+    return [];
+  }
+
   // User Management
   static Future<AuthResponse> signUp({
     required String email,
@@ -69,9 +83,22 @@ class SupabaseService {
   }
 
   static Future<Map<String, dynamic>?> getUserProfile(String userId) async {
-    final response =
-        await client.from('user_profiles').select().eq('id', userId).single();
-    return response;
+    final response = await client
+        .from('user_profiles')
+        .select()
+        .eq('id', userId)
+        .maybeSingle();
+    if (response == null) return null;
+    try {
+      return Map<String, dynamic>.from(response as Map);
+    } catch (_) {
+      // Try wrapped data
+      try {
+        final data = (response as dynamic).data;
+        if (data is Map) return Map<String, dynamic>.from(data);
+      } catch (_) {}
+    }
+    return null;
   }
 
   static Future<void> updateUserProfile(
@@ -97,7 +124,7 @@ class SupabaseService {
         .select()
         .eq('is_approved', false)
         .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+    return _toList(response);
   }
 
   static Future<List<Map<String, dynamic>>> getAllUsers() async {
@@ -105,7 +132,7 @@ class SupabaseService {
         .from('user_profiles')
         .select()
         .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+    return _toList(response);
   }
 
   // Events Management
@@ -127,7 +154,7 @@ class SupabaseService {
   static Future<List<Map<String, dynamic>>> getEvents() async {
     final response =
         await client.from('events').select().order('date', ascending: true);
-    return List<Map<String, dynamic>>.from(response);
+    return _toList(response);
   }
 
   static Future<void> deleteEvent(String eventId) async {
@@ -155,7 +182,7 @@ class SupabaseService {
         .select()
         .eq('status', 'pending')
         .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+    return _toList(response);
   }
 
   static Future<void> approveUpload(String uploadId) async {
@@ -174,39 +201,30 @@ class SupabaseService {
 
   // Analytics
   static Future<Map<String, int>> getAnalytics() async {
-    // --- FIX 1 ---
-    final totalStudents = await client
+    // Use length-based counts to avoid CountOption dependency in tests
+    final studentsResp = await client
         .from('user_profiles')
-        .select('id')
+        .select()
         .eq('role', 'student')
-        .eq('is_approved', true)
-        .count(CountOption.exact); // Chained .count()
+        .eq('is_approved', true);
+    final totalStudents = _toList(studentsResp).length;
 
-    // --- FIX 2 ---
-    final pendingUploads = await client
-        .from('uploads')
-        .select('id')
-        .eq('status', 'pending')
-        .count(CountOption.exact); // Chained .count()
+    final pendingUploadsResp =
+        await client.from('uploads').select().eq('status', 'pending');
+    final pendingUploads = _toList(pendingUploadsResp).length;
 
-    // --- FIX 3 ---
-    final totalEvents = await client
-        .from('events')
-        .select('id')
-        .count(CountOption.exact); // Chained .count()
+    final eventsResp = await client.from('events').select();
+    final totalEvents = _toList(eventsResp).length;
 
-    // --- FIX 4 ---
-    final totalUsers = await client
-        .from('user_profiles')
-        .select('id')
-        .eq('is_approved', true)
-        .count(CountOption.exact); // Chained .count()
+    final usersResp =
+        await client.from('user_profiles').select().eq('is_approved', true);
+    final totalUsers = _toList(usersResp).length;
 
     return {
-      'totalStudents': totalStudents.count ?? 0,
-      'pendingUploads': pendingUploads.count ?? 0,
-      'totalEvents': totalEvents.count ?? 0,
-      'totalUsers': totalUsers.count ?? 0,
+      'totalStudents': totalStudents,
+      'pendingUploads': pendingUploads,
+      'totalEvents': totalEvents,
+      'totalUsers': totalUsers,
     };
   }
 
@@ -241,7 +259,7 @@ class SupabaseService {
           .select()
           .eq('uploaded_by', rollNumber)
           .order('created_at', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
+      return _toList(response);
     } catch (e) {
       return [];
     }

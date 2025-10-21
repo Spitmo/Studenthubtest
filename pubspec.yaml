@@ -9,17 +9,21 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # Updated Packages
   provider: ^6.1.2
   curved_navigation_bar: ^1.0.6
   intl: ^0.19.0
   uuid: ^4.5.1
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.5.6
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.2.3 # Updated from 2.2.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # This is the latest version compatible with your SDK
   flutter_lints: ^4.0.0
 
 flutter:

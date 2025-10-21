@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SupabaseService {
   static const String supabaseUrl = 'https://qbutsawjtzvnoffkcsor.supabase.co';
   static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFidXRzYXdqdHp2bm9mZmtjc29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTkyMjQsImV4cCI6MjA3NjI5NTIyNH0.fquFrkAr5rfMccFT7I_lXJuUOnrVULEtPtV2pjBFRZk';
-  
+
   static SupabaseClient get client => Supabase.instance.client;
 
   static Future<void> initialize() async {
@@ -174,9 +174,9 @@ class SupabaseService {
     await client
         .from('file_uploads')
         .update({
-          'status': 'approved',
-          'approved_at': DateTime.now().toIso8601String(),
-        })
+      'status': 'approved',
+      'approved_at': DateTime.now().toIso8601String(),
+    })
         .eq('id', uploadId);
   }
 
@@ -184,33 +184,41 @@ class SupabaseService {
     await client
         .from('file_uploads')
         .update({
-          'status': 'rejected',
-          'rejected_at': DateTime.now().toIso8601String(),
-        })
+      'status': 'rejected',
+      'rejected_at': DateTime.now().toIso8601String(),
+    })
         .eq('id', uploadId);
   }
 
   // Analytics
   static Future<Map<String, int>> getAnalytics() async {
+    // --- FIX 1 ---
     final totalStudents = await client
         .from('user_profiles')
-        .select('id', const FetchOptions(count: CountOption.exact))
+        .select('id')
         .eq('role', 'student')
-        .eq('is_approved', true);
-    
+        .eq('is_approved', true)
+        .count(CountOption.exact); // Chained .count()
+
+    // --- FIX 2 ---
     final pendingUploads = await client
         .from('file_uploads')
-        .select('id', const FetchOptions(count: CountOption.exact))
-        .eq('status', 'pending');
-    
+        .select('id')
+        .eq('status', 'pending')
+        .count(CountOption.exact); // Chained .count()
+
+    // --- FIX 3 ---
     final totalEvents = await client
         .from('events')
-        .select('id', const FetchOptions(count: CountOption.exact));
-    
+        .select('id')
+        .count(CountOption.exact); // Chained .count()
+
+    // --- FIX 4 ---
     final totalUsers = await client
         .from('user_profiles')
-        .select('id', const FetchOptions(count: CountOption.exact))
-        .eq('is_approved', true);
+        .select('id')
+        .eq('is_approved', true)
+        .count(CountOption.exact); // Chained .count()
 
     return {
       'totalStudents': totalStudents.count ?? 0,

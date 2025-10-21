@@ -38,13 +38,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   // Demo users for role management
   final List<_UserItem> _users = [
-    _UserItem('Alice Johnson', 'student'),
-    _UserItem('Bob Lee', 'student'),
-    _UserItem('Carol Diaz', 'moderator'),
-    _UserItem('Daniel Kim', 'admin'),
-    _UserItem('Evan Park', 'student'),
-    _UserItem('Fiona Chen', 'student'),
-    _UserItem('George Wilson', 'moderator'),
+    const _UserItem('Alice Johnson', 'student'),
+    const _UserItem('Bob Lee', 'student'),
+    const _UserItem('Carol Diaz', 'moderator'),
+    const _UserItem('Daniel Kim', 'admin'),
+    const _UserItem('Evan Park', 'student'),
+    const _UserItem('Fiona Chen', 'student'),
+    const _UserItem('George Wilson', 'moderator'),
   ];
   final TextEditingController _userSearch = TextEditingController();
 
@@ -75,7 +75,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final primary = scheme.primary;
     final secondary = scheme.secondary;
     
-    final List<Widget> _pages = [
+    final List<Widget> pages = [
       _buildAnalyticsPage(context, primary, secondary),
       _buildEventsPage(context, df),
       _buildUsersPage(context),
@@ -111,7 +111,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ],
       ),
       drawer: _buildNavigationDrawer(context),
-      body: _pages[_selectedIndex],
+      body: pages[_selectedIndex],
       floatingActionButton: _selectedIndex == 1 ? FloatingActionButton.extended(
         onPressed: _showAddEventDialog,
         icon: const Icon(Icons.add_rounded),
@@ -366,7 +366,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.arrow_upward_rounded,
                         color: Colors.green,
                         size: 12,

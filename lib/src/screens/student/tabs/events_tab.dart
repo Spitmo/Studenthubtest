@@ -125,7 +125,7 @@ class _EventsTabState extends State<EventsTab> {
                                 ),
                                 child: Text(
                                   daysUntil == 0 ? 'Today' : daysUntil == 1 ? 'Tomorrow' : '${daysUntil}d',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Colors.green,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -238,7 +238,7 @@ class _EventsTabState extends State<EventsTab> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Icon(Icons.calendar_today_rounded, size: 16),
+                const Icon(Icons.calendar_today_rounded, size: 16),
                 const SizedBox(width: 8),
                 Text(DateFormat('EEEE, MMMM d, yyyy').format(event.date)),
               ],
@@ -246,7 +246,7 @@ class _EventsTabState extends State<EventsTab> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.access_time_rounded, size: 16),
+                const Icon(Icons.access_time_rounded, size: 16),
                 const SizedBox(width: 8),
                 Text(event.time),
               ],
@@ -254,7 +254,7 @@ class _EventsTabState extends State<EventsTab> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.location_on_rounded, size: 16),
+                const Icon(Icons.location_on_rounded, size: 16),
                 const SizedBox(width: 8),
                 Text(event.location),
               ],

@@ -125,28 +125,37 @@ class _StudentShellState extends State<StudentShell> {
         ],
       ),
       drawer: _buildNavigationDrawer(context, auth, scheme),
-      body: Column(
-        children: [
-          // Welcome Section
-          _buildWelcomeSection(context, auth, scheme),
-          // Main Content
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0.1, 0),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
+      body: SafeArea(
+        // ADD SAFE AREA FOR BETTER UI
+        child: Column(
+          children: [
+            // Welcome Section - FIXED HEIGHT
+            Container(
+              height: 180, // FIXED HEIGHT TO PREVENT OVERFLOW
+              child: _buildWelcomeSection(context, auth, scheme),
+            ),
+            // Main Content - FIXED EXPANDED
+            Expanded(
+              child: Container(
+                width: double.infinity, // FIXED WIDTH
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.1, 0),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  ),
+                  child: _tabs[_index],
                 ),
               ),
-              child: _tabs[_index],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: CurvedNavigationBar(
         index: _index,
@@ -165,177 +174,187 @@ class _StudentShellState extends State<StudentShell> {
   Widget _buildNavigationDrawer(
       BuildContext context, AuthProvider auth, ColorScheme scheme) {
     return Drawer(
-      child: Column(
-        children: [
-          // Drawer Header
-          DrawerHeader(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [scheme.primary, scheme.primary.withOpacity(0.8)],
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.white.withOpacity(0.2),
-                  child: Icon(
-                    Icons.person_rounded,
-                    size: 40,
-                    color: Colors.white,
+      child: SafeArea(
+        // ADD SAFE AREA
+        child: Column(
+          children: [
+            // Drawer Header - FIXED HEIGHT
+            Container(
+              height: 200, // FIXED HEIGHT
+              child: DrawerHeader(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [scheme.primary, scheme.primary.withOpacity(0.8)],
                   ),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  'Welcome!',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Roll: ${auth.rollNumber ?? 'N/A'}',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'Student',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Navigation Items
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.dashboard_rounded,
-                  title: 'Dashboard',
-                  onTap: () {
-                    setState(() => _index = 0);
-                    Navigator.pop(context);
-                  },
-                  isSelected: _index == 0,
-                ),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.note_alt_rounded,
-                  title: 'Notes & Uploads',
-                  onTap: () {
-                    setState(() => _index = 0);
-                    Navigator.pop(context);
-                  },
-                  isSelected: _index == 0,
-                ),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.event_rounded,
-                  title: 'Events',
-                  onTap: () {
-                    setState(() => _index = 1);
-                    Navigator.pop(context);
-                  },
-                  isSelected: _index == 1,
-                ),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.forum_rounded,
-                  title: 'Discussion',
-                  onTap: () {
-                    setState(() => _index = 2);
-                    Navigator.pop(context);
-                  },
-                  isSelected: _index == 2,
-                ),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.person_rounded,
-                  title: 'Profile',
-                  onTap: () {
-                    setState(() => _index = 3);
-                    Navigator.pop(context);
-                  },
-                  isSelected: _index == 3,
-                ),
-                const Divider(),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.logout_rounded,
-                  title: 'Logout',
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.read<AuthProvider>().logout();
-                  },
-                  isSelected: false,
-                  textColor: Colors.red,
-                ),
-              ],
-            ),
-          ),
-          // Supabase Connection Status
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      _isConnectedToSupabase
-                          ? Icons.cloud_done_rounded
-                          : Icons.cloud_off_rounded,
-                      color: _isConnectedToSupabase ? Colors.green : Colors.red,
-                      size: 16,
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      child: Icon(
+                        Icons.person_rounded,
+                        size: 40,
+                        color: Colors.white,
+                      ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 12),
                     Text(
-                      _isConnectedToSupabase
-                          ? 'Connected to Supabase'
-                          : 'Supabase Offline',
+                      'Welcome!',
                       style: TextStyle(
-                        color:
-                            _isConnectedToSupabase ? Colors.green : Colors.red,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'Roll: ${auth.rollNumber ?? 'N/A'}',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Student',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                if (_analytics.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Your Uploads: ${_analytics['totalUploads'] ?? 0}',
-                    style: TextStyle(
-                      color: scheme.onSurface.withOpacity(0.6),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
-        ],
+            // Navigation Items - EXPANDED TO FILL SPACE
+            Expanded(
+              child: SingleChildScrollView(
+                // ADD SCROLL FOR SAFETY
+                child: Column(
+                  children: [
+                    _buildDrawerItem(
+                      context,
+                      icon: Icons.dashboard_rounded,
+                      title: 'Dashboard',
+                      onTap: () {
+                        setState(() => _index = 0);
+                        Navigator.pop(context);
+                      },
+                      isSelected: _index == 0,
+                    ),
+                    _buildDrawerItem(
+                      context,
+                      icon: Icons.note_alt_rounded,
+                      title: 'Notes & Uploads',
+                      onTap: () {
+                        setState(() => _index = 0);
+                        Navigator.pop(context);
+                      },
+                      isSelected: _index == 0,
+                    ),
+                    _buildDrawerItem(
+                      context,
+                      icon: Icons.event_rounded,
+                      title: 'Events',
+                      onTap: () {
+                        setState(() => _index = 1);
+                        Navigator.pop(context);
+                      },
+                      isSelected: _index == 1,
+                    ),
+                    _buildDrawerItem(
+                      context,
+                      icon: Icons.forum_rounded,
+                      title: 'Discussion',
+                      onTap: () {
+                        setState(() => _index = 2);
+                        Navigator.pop(context);
+                      },
+                      isSelected: _index == 2,
+                    ),
+                    _buildDrawerItem(
+                      context,
+                      icon: Icons.person_rounded,
+                      title: 'Profile',
+                      onTap: () {
+                        setState(() => _index = 3);
+                        Navigator.pop(context);
+                      },
+                      isSelected: _index == 3,
+                    ),
+                    const Divider(),
+                    _buildDrawerItem(
+                      context,
+                      icon: Icons.logout_rounded,
+                      title: 'Logout',
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.read<AuthProvider>().logout();
+                      },
+                      isSelected: false,
+                      textColor: Colors.red,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Supabase Connection Status - FIXED AT BOTTOM
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        _isConnectedToSupabase
+                            ? Icons.cloud_done_rounded
+                            : Icons.cloud_off_rounded,
+                        color:
+                            _isConnectedToSupabase ? Colors.green : Colors.red,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _isConnectedToSupabase
+                            ? 'Connected to Supabase'
+                            : 'Supabase Offline',
+                        style: TextStyle(
+                          color: _isConnectedToSupabase
+                              ? Colors.green
+                              : Colors.red,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_analytics.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your Uploads: ${_analytics['totalUploads'] ?? 0}',
+                      style: TextStyle(
+                        color: scheme.onSurface.withOpacity(0.6),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -412,16 +431,16 @@ class _StudentShellState extends State<StudentShell> {
                       'Welcome back!',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 24,
+                        fontSize: 20, // REDUCED FONT SIZE
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Roll Number: ${auth.rollNumber ?? 'N/A'}',
+                      'Roll: ${auth.rollNumber ?? 'N/A'}',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.9),
-                        fontSize: 16,
+                        fontSize: 14, // REDUCED FONT SIZE
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -436,7 +455,7 @@ class _StudentShellState extends State<StudentShell> {
                         'Student',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 14,
+                          fontSize: 12, // REDUCED FONT SIZE
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -445,29 +464,29 @@ class _StudentShellState extends State<StudentShell> {
                 ),
               ),
               CircleAvatar(
-                radius: 30,
+                radius: 25, // REDUCED SIZE
                 backgroundColor: Colors.white.withOpacity(0.2),
                 child: Icon(
                   Icons.person_rounded,
-                  size: 40,
+                  size: 30, // REDUCED SIZE
                   color: Colors.white,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16), // REDUCED SPACING
           // Quick Stats
           Row(
             children: [
               Expanded(
                 child: _buildQuickStat(
                   context,
-                  'Total Uploads',
+                  'Uploads',
                   '${_analytics['totalUploads'] ?? 0}',
                   Icons.upload_file_rounded,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8), // REDUCED SPACING
               Expanded(
                 child: _buildQuickStat(
                   context,
@@ -476,7 +495,7 @@ class _StudentShellState extends State<StudentShell> {
                   Icons.check_circle_rounded,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8), // REDUCED SPACING
               Expanded(
                 child: _buildQuickStat(
                   context,
@@ -495,7 +514,7 @@ class _StudentShellState extends State<StudentShell> {
   Widget _buildQuickStat(
       BuildContext context, String label, String value, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8), // REDUCED PADDING
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
@@ -505,14 +524,14 @@ class _StudentShellState extends State<StudentShell> {
           Icon(
             icon,
             color: Colors.white,
-            size: 20,
+            size: 16, // REDUCED SIZE
           ),
           const SizedBox(height: 4),
           Text(
             value,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 14, // REDUCED FONT SIZE
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -520,7 +539,7 @@ class _StudentShellState extends State<StudentShell> {
             label,
             style: TextStyle(
               color: Colors.white.withOpacity(0.8),
-              fontSize: 12,
+              fontSize: 10, // REDUCED FONT SIZE
             ),
             textAlign: TextAlign.center,
           ),

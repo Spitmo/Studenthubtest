@@ -3,7 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class SupabaseService {
   static const String supabaseUrl = 'https://qbutsawjtzvnoffkcsor.supabase.co';
-  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFidXRzYXdqdHp2bm9mZmtjc29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTkyMjQsImV4cCI6MjA3NjI5NTIyNH0.fquFrkAr5rfMccFT7I_lXJuUOnrVULEtPtV2pjBFRZk';
+  static const String supabaseAnonKey =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFidXRzYXdqdHp2bm9mZmtjc29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTkyMjQsImV4cCI6MjA3NjI5NTIyNH0.fquFrkAr5rfMccFT7I_lXJuUOnrVULEtPtV2pjBFRZk';
 
   static SupabaseClient get client => Supabase.instance.client;
 
@@ -68,33 +69,25 @@ class SupabaseService {
   }
 
   static Future<Map<String, dynamic>?> getUserProfile(String userId) async {
-    final response = await client
-        .from('user_profiles')
-        .select()
-        .eq('id', userId)
-        .single();
+    final response =
+        await client.from('user_profiles').select().eq('id', userId).single();
     return response;
   }
 
-  static Future<void> updateUserProfile(String userId, Map<String, dynamic> updates) async {
-    await client
-        .from('user_profiles')
-        .update(updates)
-        .eq('id', userId);
+  static Future<void> updateUserProfile(
+      String userId, Map<String, dynamic> updates) async {
+    await client.from('user_profiles').update(updates).eq('id', userId);
   }
 
   static Future<void> approveUser(String userId) async {
-    await client
-        .from('user_profiles')
-        .update({'is_approved': true, 'approved_at': DateTime.now().toIso8601String()})
-        .eq('id', userId);
+    await client.from('user_profiles').update({
+      'is_approved': true,
+      'approved_at': DateTime.now().toIso8601String()
+    }).eq('id', userId);
   }
 
   static Future<void> rejectUser(String userId) async {
-    await client
-        .from('user_profiles')
-        .delete()
-        .eq('id', userId);
+    await client.from('user_profiles').delete().eq('id', userId);
   }
 
   // Pending Users Management
@@ -132,27 +125,22 @@ class SupabaseService {
   }
 
   static Future<List<Map<String, dynamic>>> getEvents() async {
-    final response = await client
-        .from('events')
-        .select()
-        .order('date', ascending: true);
+    final response =
+        await client.from('events').select().order('date', ascending: true);
     return List<Map<String, dynamic>>.from(response);
   }
 
   static Future<void> deleteEvent(String eventId) async {
-    await client
-        .from('events')
-        .delete()
-        .eq('id', eventId);
+    await client.from('events').delete().eq('id', eventId);
   }
 
   // File Uploads Management
-  static Future<void> createFileUpload({
+  static Future<void> createUpload({
     required String filename,
     required String remark,
     required String uploadedBy,
   }) async {
-    await client.from('file_uploads').insert({
+    await client.from('uploads').insert({
       'filename': filename,
       'remark': remark,
       'uploaded_by': uploadedBy,
@@ -163,7 +151,7 @@ class SupabaseService {
 
   static Future<List<Map<String, dynamic>>> getPendingUploads() async {
     final response = await client
-        .from('file_uploads')
+        .from('uploads')
         .select()
         .eq('status', 'pending')
         .order('created_at', ascending: false);
@@ -171,23 +159,17 @@ class SupabaseService {
   }
 
   static Future<void> approveUpload(String uploadId) async {
-    await client
-        .from('file_uploads')
-        .update({
+    await client.from('uploads').update({
       'status': 'approved',
       'approved_at': DateTime.now().toIso8601String(),
-    })
-        .eq('id', uploadId);
+    }).eq('id', uploadId);
   }
 
   static Future<void> rejectUpload(String uploadId) async {
-    await client
-        .from('file_uploads')
-        .update({
+    await client.from('uploads').update({
       'status': 'rejected',
       'rejected_at': DateTime.now().toIso8601String(),
-    })
-        .eq('id', uploadId);
+    }).eq('id', uploadId);
   }
 
   // Analytics
@@ -202,7 +184,7 @@ class SupabaseService {
 
     // --- FIX 2 ---
     final pendingUploads = await client
-        .from('file_uploads')
+        .from('uploads')
         .select('id')
         .eq('status', 'pending')
         .count(CountOption.exact); // Chained .count()
@@ -251,10 +233,11 @@ class SupabaseService {
   }
 
   // Get Student-specific uploads
-  static Future<List<Map<String, dynamic>>> getStudentUploads(String rollNumber) async {
+  static Future<List<Map<String, dynamic>>> getStudentUploads(
+      String rollNumber) async {
     try {
       final response = await client
-          .from('file_uploads')
+          .from('uploads')
           .select()
           .eq('uploaded_by', rollNumber)
           .order('created_at', ascending: false);
@@ -269,9 +252,13 @@ class SupabaseService {
     try {
       final studentUploads = await getStudentUploads(rollNumber);
       final totalUploads = studentUploads.length;
-      final approvedUploads = studentUploads.where((upload) => upload['status'] == 'approved').length;
-      final pendingUploads = studentUploads.where((upload) => upload['status'] == 'pending').length;
-      
+      final approvedUploads = studentUploads
+          .where((upload) => upload['status'] == 'approved')
+          .length;
+      final pendingUploads = studentUploads
+          .where((upload) => upload['status'] == 'pending')
+          .length;
+
       return {
         'totalUploads': totalUploads,
         'approvedUploads': approvedUploads,

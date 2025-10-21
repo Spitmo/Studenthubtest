@@ -10,12 +10,21 @@ class DiscussionTab extends StatefulWidget {
 
 class _DiscussionTabState extends State<DiscussionTab> {
   final List<_Msg> _messages = [
-    _Msg('Welcome to the StudentHub discussion! Feel free to ask questions and share ideas.', false, DateTime.now().subtract(const Duration(hours: 2)), 'Admin'),
-    _Msg('Anyone working on the math assignment? I need help with problem 5.', true, DateTime.now().subtract(const Duration(hours: 1)), 'You'),
-    _Msg('I can help! The key is to use the quadratic formula.', false, DateTime.now().subtract(const Duration(minutes: 45)), 'Alice'),
-    _Msg('Thanks Alice! That really helped.', true, DateTime.now().subtract(const Duration(minutes: 30)), 'You'),
-    _Msg('Is the library open today?', false, DateTime.now().subtract(const Duration(minutes: 15)), 'Bob'),
-    _Msg('Yes, until 10 PM', false, DateTime.now().subtract(const Duration(minutes: 10)), 'Carol'),
+    _Msg(
+        'Welcome to the StudentHub discussion! Feel free to ask questions and share ideas.',
+        false,
+        DateTime.now().subtract(const Duration(hours: 2)),
+        'Admin'),
+    _Msg('Anyone working on the math assignment? I need help with problem 5.',
+        true, DateTime.now().subtract(const Duration(hours: 1)), 'You'),
+    _Msg('I can help! The key is to use the quadratic formula.', false,
+        DateTime.now().subtract(const Duration(minutes: 45)), 'Alice'),
+    _Msg('Thanks Alice! That really helped.', true,
+        DateTime.now().subtract(const Duration(minutes: 30)), 'You'),
+    _Msg('Is the library open today?', false,
+        DateTime.now().subtract(const Duration(minutes: 15)), 'Bob'),
+    _Msg('Yes, until 10 PM', false,
+        DateTime.now().subtract(const Duration(minutes: 10)), 'Carol'),
   ];
   final _controller = TextEditingController();
   final _scroll = ScrollController();
@@ -48,7 +57,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    
+
     return Column(
       children: [
         // Header
@@ -81,14 +90,14 @@ class _DiscussionTabState extends State<DiscussionTab> {
                     Text(
                       'Student Discussion',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                     Text(
                       '${_messages.length} messages',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurface.withOpacity(0.6),
-                      ),
+                            color: scheme.onSurface.withOpacity(0.6),
+                          ),
                     ),
                   ],
                 ),
@@ -104,7 +113,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
             ],
           ),
         ),
-        
+
         // Messages
         Expanded(
           child: ListView.builder(
@@ -117,7 +126,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
             },
           ),
         ),
-        
+
         // Input Area
         Container(
           padding: const EdgeInsets.all(16),
@@ -140,17 +149,20 @@ class _DiscussionTabState extends State<DiscussionTab> {
                     hintText: 'Type a message...',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide(color: scheme.outline.withOpacity(0.3)),
+                      borderSide:
+                          BorderSide(color: scheme.outline.withOpacity(0.3)),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide(color: scheme.outline.withOpacity(0.3)),
+                      borderSide:
+                          BorderSide(color: scheme.outline.withOpacity(0.3)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(24),
                       borderSide: BorderSide(color: scheme.primary),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     filled: true,
                     fillColor: scheme.surface,
                   ),
@@ -181,11 +193,12 @@ class _DiscussionTabState extends State<DiscussionTab> {
     final isMine = message.isMine;
     final color = isMine ? scheme.primary : scheme.surface;
     final textColor = isMine ? Colors.white : scheme.onSurface;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMine) ...[
@@ -285,5 +298,3 @@ class _Msg {
   final String sender;
   _Msg(this.text, this.isMine, this.ts, this.sender);
 }
-
-

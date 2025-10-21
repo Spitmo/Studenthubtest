@@ -42,13 +42,13 @@ class _StudentShellState extends State<StudentShell> {
       // Test Supabase connection
       final isConnected = await SupabaseService.testConnection();
       final auth = context.read<AuthProvider>();
-      
+
       Map<String, int> analytics = {};
       if (isConnected && auth.rollNumber != null) {
         // Get student-specific analytics
         analytics = await SupabaseService.getStudentAnalytics(auth.rollNumber!);
       }
-      
+
       setState(() {
         _isConnectedToSupabase = isConnected;
         _analytics = analytics;
@@ -67,7 +67,7 @@ class _StudentShellState extends State<StudentShell> {
     final auth = context.watch<AuthProvider>();
     final themeProvider = context.watch<ThemeProvider>();
     final scheme = Theme.of(context).colorScheme;
-    
+
     final items = <Widget>[
       const Icon(Icons.note_alt_outlined, color: Colors.white),
       const Icon(Icons.event_outlined, color: Colors.white),
@@ -97,7 +97,9 @@ class _StudentShellState extends State<StudentShell> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : Icon(
-                    _isConnectedToSupabase ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                    _isConnectedToSupabase
+                        ? Icons.cloud_done_rounded
+                        : Icons.cloud_off_rounded,
                     color: _isConnectedToSupabase ? Colors.green : Colors.red,
                     size: 20,
                   ),
@@ -107,7 +109,9 @@ class _StudentShellState extends State<StudentShell> {
             icon: AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               child: Icon(
-                themeProvider.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                themeProvider.isDarkMode
+                    ? Icons.light_mode_rounded
+                    : Icons.dark_mode_rounded,
                 key: ValueKey(themeProvider.isDarkMode),
               ),
             ),
@@ -158,7 +162,8 @@ class _StudentShellState extends State<StudentShell> {
     );
   }
 
-  Widget _buildNavigationDrawer(BuildContext context, AuthProvider auth, ColorScheme scheme) {
+  Widget _buildNavigationDrawer(
+      BuildContext context, AuthProvider auth, ColorScheme scheme) {
     return Drawer(
       child: Column(
         children: [
@@ -201,7 +206,8 @@ class _StudentShellState extends State<StudentShell> {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -296,15 +302,20 @@ class _StudentShellState extends State<StudentShell> {
                 Row(
                   children: [
                     Icon(
-                      _isConnectedToSupabase ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                      _isConnectedToSupabase
+                          ? Icons.cloud_done_rounded
+                          : Icons.cloud_off_rounded,
                       color: _isConnectedToSupabase ? Colors.green : Colors.red,
                       size: 16,
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      _isConnectedToSupabase ? 'Connected to Supabase' : 'Supabase Offline',
+                      _isConnectedToSupabase
+                          ? 'Connected to Supabase'
+                          : 'Supabase Offline',
                       style: TextStyle(
-                        color: _isConnectedToSupabase ? Colors.green : Colors.red,
+                        color:
+                            _isConnectedToSupabase ? Colors.green : Colors.red,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -338,7 +349,7 @@ class _StudentShellState extends State<StudentShell> {
     Color? textColor,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -348,12 +359,15 @@ class _StudentShellState extends State<StudentShell> {
       child: ListTile(
         leading: Icon(
           icon,
-          color: isSelected ? scheme.primary : textColor ?? scheme.onSurface.withOpacity(0.7),
+          color: isSelected
+              ? scheme.primary
+              : textColor ?? scheme.onSurface.withOpacity(0.7),
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: textColor ?? (isSelected ? scheme.primary : scheme.onSurface),
+            color:
+                textColor ?? (isSelected ? scheme.primary : scheme.onSurface),
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -365,7 +379,8 @@ class _StudentShellState extends State<StudentShell> {
     );
   }
 
-  Widget _buildWelcomeSection(BuildContext context, AuthProvider auth, ColorScheme scheme) {
+  Widget _buildWelcomeSection(
+      BuildContext context, AuthProvider auth, ColorScheme scheme) {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -411,7 +426,8 @@ class _StudentShellState extends State<StudentShell> {
                     ),
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(16),
@@ -476,7 +492,8 @@ class _StudentShellState extends State<StudentShell> {
     );
   }
 
-  Widget _buildQuickStat(BuildContext context, String label, String value, IconData icon) {
+  Widget _buildQuickStat(
+      BuildContext context, String label, String value, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -512,5 +529,3 @@ class _StudentShellState extends State<StudentShell> {
     );
   }
 }
-
-

@@ -16,11 +16,16 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
   List<_UploadItem> _uploads = [];
   final _remarkCtrl = TextEditingController();
   late TabController _tabController;
-  
+
   // Categories
-  final List<String> _categories = ['All', 'Regular', 'Assignment', 'Practical'];
+  final List<String> _categories = [
+    'All',
+    'Regular',
+    'Assignment',
+    'Practical'
+  ];
   int _selectedCategoryIndex = 0;
-  
+
   // Loading states
   bool _isLoading = true;
   bool _isUploading = false;
@@ -49,17 +54,18 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
     try {
       // Load from Supabase
       final supabaseUploads = await SupabaseService.getPendingUploads();
-      
+
       // Convert to local format and add some demo data
       final List<_UploadItem> allUploads = [
         ...supabaseUploads.map((upload) => _UploadItem(
-          id: upload['id']?.toString(),
-          filename: upload['filename'] ?? 'Unknown',
-          remark: upload['remark'] ?? '',
-          category: _getCategoryFromFilename(upload['filename'] ?? ''),
-          status: _getStatusFromSupabase(upload['status'] ?? 'pending'),
-          timestamp: DateTime.parse(upload['created_at'] ?? DateTime.now().toIso8601String()),
-        )),
+              id: upload['id']?.toString(),
+              filename: upload['filename'] ?? 'Unknown',
+              remark: upload['remark'] ?? '',
+              category: _getCategoryFromFilename(upload['filename'] ?? ''),
+              status: _getStatusFromSupabase(upload['status'] ?? 'pending'),
+              timestamp: DateTime.parse(
+                  upload['created_at'] ?? DateTime.now().toIso8601String()),
+            )),
         // Add some demo data if no Supabase data
         if (supabaseUploads.isEmpty) ...[
           _UploadItem(
@@ -100,8 +106,11 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
 
   String _getCategoryFromFilename(String filename) {
     final lower = filename.toLowerCase();
-    if (lower.contains('assignment') || lower.contains('assign')) return 'Assignment';
-    if (lower.contains('lab') || lower.contains('practical') || lower.contains('exp')) return 'Practical';
+    if (lower.contains('assignment') || lower.contains('assign'))
+      return 'Assignment';
+    if (lower.contains('lab') ||
+        lower.contains('practical') ||
+        lower.contains('exp')) return 'Practical';
     return 'Regular';
   }
 
@@ -124,7 +133,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
       );
       return;
     }
-    
+
     setState(() {
       _isUploading = true;
     });
@@ -132,27 +141,29 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
     try {
       final auth = context.read<AuthProvider>();
       final filename = 'note_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      
+
       // Upload to Supabase
-      await SupabaseService.createFileUpload(
+      await SupabaseService.createUpload(
         filename: filename,
         remark: _remarkCtrl.text.trim(),
         uploadedBy: auth.rollNumber ?? 'Unknown',
       );
-      
+
       // Add to local list
       setState(() {
-        _uploads.insert(0, _UploadItem(
-          filename: filename,
-          remark: _remarkCtrl.text.trim(),
-          category: _getCategoryFromFilename(filename),
-          status: 'Pending',
-          timestamp: DateTime.now(),
-        ));
+        _uploads.insert(
+            0,
+            _UploadItem(
+              filename: filename,
+              remark: _remarkCtrl.text.trim(),
+              category: _getCategoryFromFilename(filename),
+              status: 'Pending',
+              timestamp: DateTime.now(),
+            ));
         _remarkCtrl.clear();
         _isUploading = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('File uploaded successfully!'),
@@ -163,7 +174,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
       setState(() {
         _isUploading = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Upload failed: ${e.toString()}'),
@@ -176,13 +187,15 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
   List<_UploadItem> _getFilteredUploads() {
     if (_selectedCategoryIndex == 0) return _uploads; // All
     final selectedCategory = _categories[_selectedCategoryIndex];
-    return _uploads.where((upload) => upload.category == selectedCategory).toList();
+    return _uploads
+        .where((upload) => upload.category == selectedCategory)
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    
+
     return Column(
       children: [
         // Upload Section
@@ -205,9 +218,10 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                       const SizedBox(width: 8),
                       Text(
                         'Upload New File',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                       ),
                     ],
                   ),
@@ -228,14 +242,16 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _isUploading ? null : _uploadFile,
-                          icon: _isUploading 
+                          icon: _isUploading
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.upload_file_rounded),
-                          label: Text(_isUploading ? 'Uploading...' : 'Upload File'),
+                          label: Text(
+                              _isUploading ? 'Uploading...' : 'Upload File'),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
@@ -245,14 +261,17 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: _isUploading ? null : _uploadFile,
-                          icon: _isUploading 
+                          icon: _isUploading
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
                                 )
                               : const Icon(Icons.add_rounded),
-                          label: Text(_isUploading ? 'Uploading...' : 'Upload to Supabase'),
+                          label: Text(_isUploading
+                              ? 'Uploading...'
+                              : 'Upload to Supabase'),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
@@ -265,7 +284,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
             ),
           ),
         ),
-        
+
         // Category Tabs
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -291,9 +310,9 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
             },
           ),
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         // Content Area
         Expanded(
           child: _isLoading
@@ -316,9 +335,12 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                           const SizedBox(height: 8),
                           Text(
                             _error!,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: scheme.error,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: scheme.error,
+                                ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 16),
@@ -338,7 +360,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
   Widget _buildUploadsList() {
     final filteredUploads = _getFilteredUploads();
     final scheme = Theme.of(context).colorScheme;
-    
+
     if (filteredUploads.isEmpty) {
       return Center(
         child: Column(
@@ -358,8 +380,8 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
             Text(
               'Upload your first file to get started',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurface.withOpacity(0.6),
-              ),
+                    color: scheme.onSurface.withOpacity(0.6),
+                  ),
             ),
           ],
         ),
@@ -395,7 +417,8 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: _getStatusColor(item.status).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -411,7 +434,8 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: scheme.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -429,8 +453,8 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                     Text(
                       DateFormat('MMM d, h:mm a').format(item.timestamp),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurface.withOpacity(0.6),
-                      ),
+                            color: scheme.onSurface.withOpacity(0.6),
+                          ),
                     ),
                   ],
                 ),
@@ -467,7 +491,8 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
             const SizedBox(height: 8),
             Text('Status: ${item.status}'),
             const SizedBox(height: 8),
-            Text('Uploaded: ${DateFormat('MMM d, yyyy h:mm a').format(item.timestamp)}'),
+            Text(
+                'Uploaded: ${DateFormat('MMM d, yyyy h:mm a').format(item.timestamp)}'),
           ],
         ),
         actions: [
@@ -523,5 +548,3 @@ class _UploadItem {
     required this.timestamp,
   });
 }
-
-

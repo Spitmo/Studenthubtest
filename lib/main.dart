@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'services/supabase_service.dart';
+import 'src/services/supabase_service.dart';
 import 'src/app_theme.dart';
 import 'src/providers/auth_provider.dart';
 import 'src/providers/theme_provider.dart';
@@ -30,7 +30,8 @@ class StudentHubApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             theme: buildLightTheme(),
             darkTheme: buildDarkTheme(),
-            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            themeMode:
+                themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             initialRoute: Routes.initial,
             onGenerateRoute: Routes.onGenerateRoute,
           );
@@ -39,5 +40,3 @@ class StudentHubApp extends StatelessWidget {
     );
   }
 }
-
-

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/supabase_service.dart';
+import '../services/supabase_service.dart';
 
 class ThemeProvider extends ChangeNotifier {
   bool _isDarkMode = false;

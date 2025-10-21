@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../services/supabase_service.dart';
 
 class EventsTab extends StatefulWidget {
   const EventsTab({super.key});
@@ -9,13 +10,56 @@ class EventsTab extends StatefulWidget {
 }
 
 class _EventsTabState extends State<EventsTab> {
-  final List<_Event> _events = [
-    _Event('Orientation Day', DateTime.now().add(const Duration(days: 2)), 'Welcome to the new semester! Join us for orientation activities and meet your fellow students.', 'Main Auditorium', '09:00 AM'),
-    _Event('Hackathon 2024', DateTime.now().add(const Duration(days: 10)), '24-hour coding challenge. Build amazing projects and compete for prizes!', 'Computer Lab', '10:00 AM'),
-    _Event('Guest Lecture', DateTime.now().add(const Duration(days: 20)), 'AI in Education by Dr. Smith. Learn about the future of technology in learning.', 'Lecture Hall 1', '02:00 PM'),
-    _Event('Career Fair', DateTime.now().add(const Duration(days: 30)), 'Meet with top companies and explore career opportunities.', 'Exhibition Hall', '09:00 AM'),
-    _Event('Cultural Festival', DateTime.now().add(const Duration(days: 45)), 'Celebrate diversity with performances, food, and cultural displays.', 'Open Ground', '06:00 PM'),
-  ];
+  List<_Event> _events = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEvents();
+  }
+
+  Future<void> _loadEvents() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // Load from Supabase
+      final supabaseEvents = await SupabaseService.getEvents();
+      
+      // Convert to local format and add demo data if needed
+      final List<_Event> allEvents = [
+        ...supabaseEvents.map((event) => _Event(
+          title: event['title'] ?? 'Untitled Event',
+          date: DateTime.parse(event['date'] ?? DateTime.now().toIso8601String()),
+          description: event['description'] ?? '',
+          location: 'Main Campus',
+          time: DateFormat('h:mm a').format(DateTime.parse(event['date'] ?? DateTime.now().toIso8601String())),
+        )),
+        // Add demo data if no Supabase data
+        if (supabaseEvents.isEmpty) ...[
+          _Event('Orientation Day', DateTime.now().add(const Duration(days: 2)), 'Welcome to the new semester! Join us for orientation activities and meet your fellow students.', 'Main Auditorium', '09:00 AM'),
+          _Event('Hackathon 2024', DateTime.now().add(const Duration(days: 10)), '24-hour coding challenge. Build amazing projects and compete for prizes!', 'Computer Lab', '10:00 AM'),
+          _Event('Guest Lecture', DateTime.now().add(const Duration(days: 20)), 'AI in Education by Dr. Smith. Learn about the future of technology in learning.', 'Lecture Hall 1', '02:00 PM'),
+          _Event('Career Fair', DateTime.now().add(const Duration(days: 30)), 'Meet with top companies and explore career opportunities.', 'Exhibition Hall', '09:00 AM'),
+          _Event('Cultural Festival', DateTime.now().add(const Duration(days: 45)), 'Celebrate diversity with performances, food, and cultural displays.', 'Open Ground', '06:00 PM'),
+        ],
+      ];
+
+      setState(() {
+        _events = allEvents;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load events: ${e.toString()}';
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,31 +71,111 @@ class _EventsTabState extends State<EventsTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Upcoming Events',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Stay updated with all campus events and activities',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: scheme.onSurface.withOpacity(0.6),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Upcoming Events',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Stay updated with all campus events and activities',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: _loadEvents,
+                icon: Icon(Icons.refresh_rounded, color: scheme.primary),
+                tooltip: 'Refresh events',
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           
-          // Events List
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-        itemCount: _events.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 16),
-        itemBuilder: (context, i) {
-              final event = _events[i];
-              final isUpcoming = event.date.isAfter(DateTime.now());
-              final daysUntil = event.date.difference(DateTime.now()).inDays;
+          // Loading/Error States
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_error != null)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 48,
+                      color: scheme.error,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Failed to load events',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _error!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.error,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: _loadEvents,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (_events.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.event_busy_rounded,
+                      size: 64,
+                      color: scheme.onSurface.withOpacity(0.3),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No events scheduled',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Check back later for upcoming events',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            // Events List
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _events.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (context, i) {
+                final event = _events[i];
+                final isUpcoming = event.date.isAfter(DateTime.now());
+                final daysUntil = event.date.difference(DateTime.now()).inDays;
               
           return Card(
                 elevation: 2,

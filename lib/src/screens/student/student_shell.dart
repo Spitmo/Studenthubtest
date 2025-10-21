@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/supabase_service.dart';
 import 'tabs/notes_tab.dart';
 import 'tabs/events_tab.dart';
 import 'tabs/discussion_tab.dart';
@@ -25,6 +26,42 @@ class _StudentShellState extends State<StudentShell> {
     ProfileTab(),
   ];
 
+  // Supabase connection status
+  bool _isConnectedToSupabase = false;
+  bool _isLoadingConnection = true;
+  Map<String, int> _analytics = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSupabaseConnection();
+  }
+
+  Future<void> _checkSupabaseConnection() async {
+    try {
+      // Test Supabase connection
+      final isConnected = await SupabaseService.testConnection();
+      final auth = context.read<AuthProvider>();
+      
+      Map<String, int> analytics = {};
+      if (isConnected && auth.rollNumber != null) {
+        // Get student-specific analytics
+        analytics = await SupabaseService.getStudentAnalytics(auth.rollNumber!);
+      }
+      
+      setState(() {
+        _isConnectedToSupabase = isConnected;
+        _analytics = analytics;
+        _isLoadingConnection = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isConnectedToSupabase = false;
+        _isLoadingConnection = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -40,10 +77,31 @@ class _StudentShellState extends State<StudentShell> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('StudentHub - ${auth.rollNumber ?? 'Student'}'),
+        title: const Text('StudentHub'),
         backgroundColor: scheme.surface,
         elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu_rounded),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         actions: [
+          // Supabase connection status indicator
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: _isLoadingConnection
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    _isConnectedToSupabase ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                    color: _isConnectedToSupabase ? Colors.green : Colors.red,
+                    size: 20,
+                  ),
+          ),
           IconButton(
             onPressed: () => themeProvider.toggleTheme(),
             icon: AnimatedSwitcher(
@@ -62,19 +120,29 @@ class _StudentShellState extends State<StudentShell> {
           ),
         ],
       ),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0.1, 0),
-              end: Offset.zero,
-            ).animate(animation),
-            child: child,
+      drawer: _buildNavigationDrawer(context, auth, scheme),
+      body: Column(
+        children: [
+          // Welcome Section
+          _buildWelcomeSection(context, auth, scheme),
+          // Main Content
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.1, 0),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
+              ),
+              child: _tabs[_index],
+            ),
           ),
-        ),
-        child: _tabs[_index],
+        ],
       ),
       bottomNavigationBar: CurvedNavigationBar(
         index: _index,
@@ -86,6 +154,360 @@ class _StudentShellState extends State<StudentShell> {
         animationDuration: const Duration(milliseconds: 300),
         onTap: (i) => setState(() => _index = i),
         height: 60,
+      ),
+    );
+  }
+
+  Widget _buildNavigationDrawer(BuildContext context, AuthProvider auth, ColorScheme scheme) {
+    return Drawer(
+      child: Column(
+        children: [
+          // Drawer Header
+          DrawerHeader(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [scheme.primary, scheme.primary.withOpacity(0.8)],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                  child: Icon(
+                    Icons.person_rounded,
+                    size: 40,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Welcome!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Roll: ${auth.rollNumber ?? 'N/A'}',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Student',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Navigation Items
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.dashboard_rounded,
+                  title: 'Dashboard',
+                  onTap: () {
+                    setState(() => _index = 0);
+                    Navigator.pop(context);
+                  },
+                  isSelected: _index == 0,
+                ),
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.note_alt_rounded,
+                  title: 'Notes & Uploads',
+                  onTap: () {
+                    setState(() => _index = 0);
+                    Navigator.pop(context);
+                  },
+                  isSelected: _index == 0,
+                ),
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.event_rounded,
+                  title: 'Events',
+                  onTap: () {
+                    setState(() => _index = 1);
+                    Navigator.pop(context);
+                  },
+                  isSelected: _index == 1,
+                ),
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.forum_rounded,
+                  title: 'Discussion',
+                  onTap: () {
+                    setState(() => _index = 2);
+                    Navigator.pop(context);
+                  },
+                  isSelected: _index == 2,
+                ),
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.person_rounded,
+                  title: 'Profile',
+                  onTap: () {
+                    setState(() => _index = 3);
+                    Navigator.pop(context);
+                  },
+                  isSelected: _index == 3,
+                ),
+                const Divider(),
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.logout_rounded,
+                  title: 'Logout',
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.read<AuthProvider>().logout();
+                  },
+                  isSelected: false,
+                  textColor: Colors.red,
+                ),
+              ],
+            ),
+          ),
+          // Supabase Connection Status
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      _isConnectedToSupabase ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                      color: _isConnectedToSupabase ? Colors.green : Colors.red,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isConnectedToSupabase ? 'Connected to Supabase' : 'Supabase Offline',
+                      style: TextStyle(
+                        color: _isConnectedToSupabase ? Colors.green : Colors.red,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                if (_analytics.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Your Uploads: ${_analytics['totalUploads'] ?? 0}',
+                    style: TextStyle(
+                      color: scheme.onSurface.withOpacity(0.6),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    required bool isSelected,
+    Color? textColor,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: isSelected ? scheme.primary.withOpacity(0.1) : null,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: isSelected ? scheme.primary : textColor ?? scheme.onSurface.withOpacity(0.7),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: textColor ?? (isSelected ? scheme.primary : scheme.onSurface),
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+        onTap: onTap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWelcomeSection(BuildContext context, AuthProvider auth, ColorScheme scheme) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [scheme.primary, scheme.primary.withOpacity(0.8)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.primary.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome back!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Roll Number: ${auth.rollNumber ?? 'N/A'}',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        'Student',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: Colors.white.withOpacity(0.2),
+                child: Icon(
+                  Icons.person_rounded,
+                  size: 40,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Quick Stats
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickStat(
+                  context,
+                  'Total Uploads',
+                  '${_analytics['totalUploads'] ?? 0}',
+                  Icons.upload_file_rounded,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickStat(
+                  context,
+                  'Approved',
+                  '${_analytics['approvedUploads'] ?? 0}',
+                  Icons.check_circle_rounded,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickStat(
+                  context,
+                  'Pending',
+                  '${_analytics['pendingUploads'] ?? 0}',
+                  Icons.schedule_rounded,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickStat(BuildContext context, String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            color: Colors.white,
+            size: 20,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 12,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

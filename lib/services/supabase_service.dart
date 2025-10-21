@@ -238,4 +238,51 @@ class SupabaseService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('isDarkMode') ?? false;
   }
+
+  // Connection Test
+  static Future<bool> testConnection() async {
+    try {
+      // Try to query a simple table to test connection
+      await client.from('user_profiles').select('id').limit(1);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Get Student-specific uploads
+  static Future<List<Map<String, dynamic>>> getStudentUploads(String rollNumber) async {
+    try {
+      final response = await client
+          .from('file_uploads')
+          .select()
+          .eq('uploaded_by', rollNumber)
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // Get Student-specific analytics
+  static Future<Map<String, int>> getStudentAnalytics(String rollNumber) async {
+    try {
+      final studentUploads = await getStudentUploads(rollNumber);
+      final totalUploads = studentUploads.length;
+      final approvedUploads = studentUploads.where((upload) => upload['status'] == 'approved').length;
+      final pendingUploads = studentUploads.where((upload) => upload['status'] == 'pending').length;
+      
+      return {
+        'totalUploads': totalUploads,
+        'approvedUploads': approvedUploads,
+        'pendingUploads': pendingUploads,
+      };
+    } catch (e) {
+      return {
+        'totalUploads': 0,
+        'approvedUploads': 0,
+        'pendingUploads': 0,
+      };
+    }
+  }
 }

@@ -194,23 +194,27 @@ class SupabaseService {
   static Future<Map<String, int>> getAnalytics() async {
     final totalStudents = await client
         .from('user_profiles')
-        .select('id', const FetchOptions(count: CountOption.exact))
+        .select()
         .eq('role', 'student')
-        .eq('is_approved', true);
+        .eq('is_approved', true)
+        .count(CountOption.exact);
     
     final pendingUploads = await client
         .from('file_uploads')
-        .select('id', const FetchOptions(count: CountOption.exact))
-        .eq('status', 'pending');
+        .select()
+        .eq('status', 'pending')
+        .count(CountOption.exact);
     
     final totalEvents = await client
         .from('events')
-        .select('id', const FetchOptions(count: CountOption.exact));
+        .select()
+        .count(CountOption.exact);
     
     final totalUsers = await client
         .from('user_profiles')
-        .select('id', const FetchOptions(count: CountOption.exact))
-        .eq('is_approved', true);
+        .select()
+        .eq('is_approved', true)
+        .count(CountOption.exact);
 
     return {
       'totalStudents': totalStudents.count ?? 0,

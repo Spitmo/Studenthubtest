@@ -62,6 +62,33 @@ class _StudentShellState extends State<StudentShell> {
     }
   }
 
+  Future<void> _confirmLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      context.read<AuthProvider>().logout();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -118,7 +145,7 @@ class _StudentShellState extends State<StudentShell> {
             tooltip: 'Toggle theme',
           ),
           IconButton(
-            onPressed: () => context.read<AuthProvider>().logout(),
+            onPressed: _confirmLogout,
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',
           ),
@@ -298,7 +325,7 @@ class _StudentShellState extends State<StudentShell> {
                       title: 'Logout',
                       onTap: () {
                         Navigator.pop(context);
-                        context.read<AuthProvider>().logout();
+                        _confirmLogout();
                       },
                       isSelected: false,
                       textColor: Colors.red,

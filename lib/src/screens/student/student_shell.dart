@@ -129,11 +129,8 @@ class _StudentShellState extends State<StudentShell> {
         // ADD SAFE AREA FOR BETTER UI
         child: Column(
           children: [
-            // Welcome Section - FIXED HEIGHT
-            Container(
-              height: 180, // FIXED HEIGHT TO PREVENT OVERFLOW
-              child: _buildWelcomeSection(context, auth, scheme),
-            ),
+            // Welcome Section - dynamic height to avoid overflow
+            _buildWelcomeSection(context, auth, scheme),
             // Main Content - FIXED EXPANDED
             Expanded(
               child: Container(
@@ -402,7 +399,7 @@ class _StudentShellState extends State<StudentShell> {
       BuildContext context, AuthProvider auth, ColorScheme scheme) {
     return Container(
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -443,10 +440,10 @@ class _StudentShellState extends State<StudentShell> {
                         fontSize: 14, // REDUCED FONT SIZE
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(16),
@@ -464,17 +461,17 @@ class _StudentShellState extends State<StudentShell> {
                 ),
               ),
               CircleAvatar(
-                radius: 25, // REDUCED SIZE
+                radius: 20, // FURTHER REDUCED SIZE
                 backgroundColor: Colors.white.withOpacity(0.2),
                 child: Icon(
                   Icons.person_rounded,
-                  size: 30, // REDUCED SIZE
+                  size: 24, // FURTHER REDUCED SIZE
                   color: Colors.white,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16), // REDUCED SPACING
+          const SizedBox(height: 8), // EVEN MORE REDUCED SPACING
           // Quick Stats
           Row(
             children: [
@@ -514,7 +511,7 @@ class _StudentShellState extends State<StudentShell> {
   Widget _buildQuickStat(
       BuildContext context, String label, String value, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(8), // REDUCED PADDING
+      padding: const EdgeInsets.all(6), // FURTHER REDUCED PADDING
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
@@ -524,14 +521,14 @@ class _StudentShellState extends State<StudentShell> {
           Icon(
             icon,
             color: Colors.white,
-            size: 16, // REDUCED SIZE
+            size: 14, // FURTHER REDUCED SIZE
           ),
           const SizedBox(height: 4),
           Text(
             value,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 14, // REDUCED FONT SIZE
+              fontSize: 12, // FURTHER REDUCED FONT SIZE
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -539,7 +536,7 @@ class _StudentShellState extends State<StudentShell> {
             label,
             style: TextStyle(
               color: Colors.white.withOpacity(0.8),
-              fontSize: 10, // REDUCED FONT SIZE
+              fontSize: 9, // FURTHER REDUCED FONT SIZE
             ),
             textAlign: TextAlign.center,
           ),

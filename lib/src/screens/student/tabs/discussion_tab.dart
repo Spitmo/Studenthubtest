@@ -352,61 +352,69 @@ class _DiscussionTabState extends State<DiscussionTab> {
         ),
 
         // Input Area
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: scheme.surface,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 4,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  decoration: InputDecoration(
-                    hintText: 'Type a message...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide:
-                          BorderSide(color: scheme.outline.withOpacity(0.3)),
+        SafeArea(
+          top: false,
+          child: Container(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 16,
+              bottom: 16,
+            ),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: InputDecoration(
+                      hintText: 'Type a message...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide:
+                            BorderSide(color: scheme.outline.withOpacity(0.3)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide:
+                            BorderSide(color: scheme.outline.withOpacity(0.3)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: scheme.primary),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      filled: true,
+                      fillColor: scheme.surface,
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide:
-                          BorderSide(color: scheme.outline.withOpacity(0.3)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide(color: scheme.primary),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    filled: true,
-                    fillColor: scheme.surface,
+                    maxLines: null,
+                    onSubmitted: (_) => _send(),
                   ),
-                  maxLines: null,
-                  onSubmitted: (_) => _send(),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: scheme.primary,
-                  borderRadius: BorderRadius.circular(24),
+                const SizedBox(width: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: IconButton(
+                    onPressed: _send,
+                    icon: const Icon(Icons.send_rounded, color: Colors.white),
+                    tooltip: 'Send message',
+                  ),
                 ),
-                child: IconButton(
-                  onPressed: _send,
-                  icon: const Icon(Icons.send_rounded, color: Colors.white),
-                  tooltip: 'Send message',
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],

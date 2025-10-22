@@ -92,15 +92,19 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
         ],
       ];
 
-      setState(() {
-        _uploads = allUploads;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _uploads = allUploads;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Failed to load uploads: ${e.toString()}';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load uploads: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -134,9 +138,11 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
       return;
     }
 
-    setState(() {
-      _isUploading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isUploading = true;
+      });
+    }
 
     try {
       final auth = context.read<AuthProvider>();
@@ -150,19 +156,21 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
       );
 
       // Add to local list
-      setState(() {
-        _uploads.insert(
-            0,
-            _UploadItem(
-              filename: filename,
-              remark: _remarkCtrl.text.trim(),
-              category: _getCategoryFromFilename(filename),
-              status: 'Pending',
-              timestamp: DateTime.now(),
-            ));
-        _remarkCtrl.clear();
-        _isUploading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _uploads.insert(
+              0,
+              _UploadItem(
+                filename: filename,
+                remark: _remarkCtrl.text.trim(),
+                category: _getCategoryFromFilename(filename),
+                status: 'Pending',
+                timestamp: DateTime.now(),
+              ));
+          _remarkCtrl.clear();
+          _isUploading = false;
+        });
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -171,9 +179,11 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
         ),
       );
     } catch (e) {
-      setState(() {
-        _isUploading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -196,8 +206,9 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Column(
-      children: [
+    return SingleChildScrollView(
+      child: Column(
+        children: [
         // Upload Section
         Container(
           padding: const EdgeInsets.all(16),
@@ -304,9 +315,11 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
             unselectedLabelColor: scheme.onSurface.withOpacity(0.6),
             labelStyle: const TextStyle(fontWeight: FontWeight.w600),
             onTap: (index) {
-              setState(() {
-                _selectedCategoryIndex = index;
-              });
+              if (mounted) {
+                setState(() {
+                  _selectedCategoryIndex = index;
+                });
+              }
             },
           ),
         ),
@@ -314,7 +327,8 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
         const SizedBox(height: 16),
 
         // Content Area
-        Expanded(
+        SizedBox(
+          height: 400, // Fixed height to prevent overflow
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _error != null
@@ -354,6 +368,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                   : _buildUploadsList(),
         ),
       ],
+      ),
     );
   }
 
@@ -450,11 +465,14 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      DateFormat('MMM d, h:mm a').format(item.timestamp),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurface.withOpacity(0.6),
-                          ),
+                    Flexible(
+                      child: Text(
+                        DateFormat('MMM d, h:mm a').format(item.timestamp),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurface.withOpacity(0.6),
+                            ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),

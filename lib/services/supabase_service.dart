@@ -238,4 +238,40 @@ class SupabaseService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('isDarkMode') ?? false;
   }
+
+  // Session Management - For AuthProvider compatibility
+  static Future<Map<String, dynamic>> getUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'user_id': prefs.getString('user_id'),
+      'user_role': prefs.getString('user_role'),
+      'roll_number': prefs.getString('roll_number'),
+      'user_name': prefs.getString('user_name'),
+      'user_email': prefs.getString('user_email'),
+    };
+  }
+
+  static Future<void> saveUserSession(
+    String userId,
+    dynamic userRole, // Can be UserRole enum or String
+    String rollNumber, {
+    String? userName,
+    String? userEmail,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_id', userId);
+    await prefs.setString('user_role', userRole.toString().split('.').last); // Convert enum to string
+    await prefs.setString('roll_number', rollNumber);
+    if (userName != null) await prefs.setString('user_name', userName);
+    if (userEmail != null) await prefs.setString('user_email', userEmail);
+  }
+
+  static Future<void> clearUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user_id');
+    await prefs.remove('user_role');
+    await prefs.remove('roll_number');
+    await prefs.remove('user_name');
+    await prefs.remove('user_email');
+  }
 }

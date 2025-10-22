@@ -115,6 +115,8 @@ class AuthProvider extends ChangeNotifier {
           _currentUser!.id,
           _currentUser!.role,
           _currentUser!.rollNumber,
+          userName: _currentUser!.name,
+          userEmail: _currentUser!.email,
         );
       } catch (e) {
         throw DatabaseException.insertFailed();

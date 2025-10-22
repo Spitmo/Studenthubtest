@@ -117,108 +117,123 @@ class _RegistrationScreenState extends State<RegistrationScreen> with SingleTick
           ),
         ],
       ),
-      body: Center(
-        child: FadeTransition(
-          opacity: _fade,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Join StudentHub',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Create your account to get started',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 24),
-                        TextFormField(
-                          controller: _nameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Full Name',
-                            prefixIcon: Icon(Icons.person_outline_rounded),
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _rollController,
-                          decoration: const InputDecoration(
-                            labelText: 'Roll Number',
-                            prefixIcon: Icon(Icons.badge_outlined),
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Roll number is required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _accessCodeController,
-                          obscureText: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Access Code',
-                            prefixIcon: Icon(Icons.lock_outline_rounded),
-                            helperText: 'Use "student123" for student or "admin123" for admin',
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Access code is required' : null,
-                        ),
-                        const SizedBox(height: 16),
-                        if (_error != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Text(
-                              _error!,
-                              style: TextStyle(color: theme.colorScheme.error),
-                              textAlign: TextAlign.center,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            const verticalPadding = 24.0;
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(vertical: verticalPadding),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - (verticalPadding * 2),
+                ),
+                child: Center(
+                  child: FadeTransition(
+                    opacity: _fade,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Form(
+                              key: _formKey,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Join StudentHub',
+                                    style: theme.textTheme.titleLarge,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Create your account to get started',
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.bodyMedium,
+                                  ),
+                                  const SizedBox(height: 24),
+                                  TextFormField(
+                                    controller: _nameController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Full Name',
+                                      prefixIcon: Icon(Icons.person_outline_rounded),
+                                    ),
+                                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextFormField(
+                                    controller: _rollController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Roll Number',
+                                      prefixIcon: Icon(Icons.badge_outlined),
+                                    ),
+                                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Roll number is required' : null,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextFormField(
+                                    controller: _accessCodeController,
+                                    obscureText: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Access Code',
+                                      prefixIcon: Icon(Icons.lock_outline_rounded),
+                                      helperText: 'Use "student123" for student or "admin123" for admin',
+                                    ),
+                                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Access code is required' : null,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  if (_error != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: Text(
+                                        _error!,
+                                        style: TextStyle(color: theme.colorScheme.error),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: _isLoading ? null : _submit,
+                                      style: ElevatedButton.styleFrom(
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                      ),
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              height: 20,
+                                              width: 20,
+                                              child: CircularProgressIndicator(strokeWidth: 2),
+                                            )
+                                          : const Text('Register'),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Already have an account? ',
+                                        style: theme.textTheme.bodyMedium,
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).pop(),
+                                        child: const Text('Sign In'),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _submit,
-                            style: ElevatedButton.styleFrom(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Text('Register'),
-                          ),
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Already have an account? ',
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: const Text('Sign In'),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

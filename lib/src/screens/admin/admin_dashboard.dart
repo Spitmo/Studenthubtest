@@ -284,14 +284,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           // Analytics Cards Grid
           LayoutBuilder(
             builder: (context, constraints) {
-              final crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
+              final width = constraints.maxWidth;
+              final isWide = width >= 600;
+              final crossAxisCount = isWide ? 4 : 2;
+              // Give tiles more height on narrow screens to avoid vertical overflow
+              final childAspectRatio = isWide ? 1.3 : 0.85;
               return GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisCount: crossAxisCount,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
-                childAspectRatio: 1.3,
+                childAspectRatio: childAspectRatio,
                 children: [
                   _buildAnalyticsCard(
                     context,

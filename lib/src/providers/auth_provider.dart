@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../exceptions/app_exceptions.dart';
@@ -145,10 +146,14 @@ class AuthProvider extends ChangeNotifier {
     }
     _setLoading(true);
     try {
-      // Unsubscribe from notifications
-      await _unsubscribeFromNotifications();
+      // Kick off unsubscription in background with timeout so UI isn't blocked
+      unawaited(
+        _unsubscribeFromNotifications()
+            .timeout(const Duration(seconds: 3), onTimeout: () {})
+            .catchError((_) {}),
+      );
 
-      // Clear session
+      // Clear session quickly, then update local state so UI can navigate immediately
       await SupabaseService.clearUserSession();
 
       _currentUser = null;
@@ -240,10 +245,20 @@ class AuthProvider extends ChangeNotifier {
     if (_currentUser == null || !_isSubscribedToNotifications) return;
 
     try {
-      await NotificationService.unsubscribeFromTopic('all_users');
-      await NotificationService.unsubscribeFromTopic('students');
-      await NotificationService.unsubscribeFromTopic('admins');
-      await NotificationService.unsubscribeFromTopic('moderators');
+      await Future.wait([
+        NotificationService
+            .unsubscribeFromTopic('all_users')
+            .timeout(const Duration(seconds: 2), onTimeout: () {}),
+        NotificationService
+            .unsubscribeFromTopic('students')
+            .timeout(const Duration(seconds: 2), onTimeout: () {}),
+        NotificationService
+            .unsubscribeFromTopic('admins')
+            .timeout(const Duration(seconds: 2), onTimeout: () {}),
+        NotificationService
+            .unsubscribeFromTopic('moderators')
+            .timeout(const Duration(seconds: 2), onTimeout: () {}),
+      ], eagerError: false);
       if (kDebugMode) {
         print('Unsubscribed from all notification topics');
       }

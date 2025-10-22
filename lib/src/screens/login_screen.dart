@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import '../../src/providers/auth_provider.dart';
 import '../../src/providers/theme_provider.dart';
 import '../../src/routes.dart';
+import '../../src/models/user_model.dart';
+import '../../src/exceptions/app_exceptions.dart';
+import '../../src/widgets/error_dialog.dart';
 import 'auth/registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -39,19 +42,38 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    
     setState(() => _error = null);
     final auth = context.read<AuthProvider>();
+    
     try {
-      auth.login(rollNumber: _rollController.text.trim(), accessCode: _codeController.text.trim());
+      // Properly await the login call
+      await auth.login(
+        rollNumber: _rollController.text.trim(),
+        accessCode: _codeController.text.trim(),
+      );
+      
+      if (!mounted) return;
+      
+      // Navigate based on user role
       if (auth.role == UserRole.student) {
-        if (!mounted) return;
         Navigator.of(context).pushReplacementNamed(Routes.student);
       } else if (auth.role == UserRole.admin) {
-        if (!mounted) return;
         Navigator.of(context).pushReplacementNamed(Routes.admin);
       }
+    } on AuthException catch (e) {
+      // Handle authentication errors
+      if (!mounted) return;
+      setState(() => _error = e.details ?? e.message);
+    } on NetworkException catch (e) {
+      // Handle network errors with dialog
+      if (!mounted) return;
+      ErrorDialog.show(context, e, onRetry: _submit);
     } catch (e) {
-      setState(() => _error = 'Invalid access code');
+      // Handle unexpected errors
+      if (!mounted) return;
+      final appException = handleError(e, context: 'Login failed');
+      setState(() => _error = appException.details ?? appException.message);
     }
   }
 

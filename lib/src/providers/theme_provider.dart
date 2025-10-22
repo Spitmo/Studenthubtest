@@ -3,29 +3,41 @@ import '../../services/supabase_service.dart';
 
 class ThemeProvider extends ChangeNotifier {
   bool _isDarkMode = false;
+  bool _isInitialized = false;
 
   bool get isDarkMode => _isDarkMode;
+  bool get isInitialized => _isInitialized;
 
-  ThemeProvider() {
-    _loadThemePreference();
-  }
-
-  Future<void> _loadThemePreference() async {
-    _isDarkMode = await SupabaseService.getThemePreference();
-    notifyListeners();
+  // Initialize theme provider
+  Future<void> initialize() async {
+    if (_isInitialized) return;
+    
+    try {
+      _isDarkMode = await SupabaseService.getThemePreference();
+      _isInitialized = true;
+      notifyListeners();
+    } catch (e) {
+      // Use default theme if loading fails
+      _isDarkMode = false;
+      _isInitialized = true;
+      notifyListeners();
+    }
   }
 
   Future<void> toggleTheme() async {
     _isDarkMode = !_isDarkMode;
-    await SupabaseService.saveThemePreference(_isDarkMode);
+    try {
+      await SupabaseService.saveThemePreference(_isDarkMode);
+    } catch (e) {
+      // If saving fails, still toggle the theme locally
+    }
     notifyListeners();
   }
 
-  Future<void> setTheme(bool isDark) async {
-    if (_isDarkMode != isDark) {
-      _isDarkMode = isDark;
-      await SupabaseService.saveThemePreference(_isDarkMode);
-      notifyListeners();
-    }
+  void setTheme(bool isDark) {
+    if (_isDarkMode == isDark) return;
+    _isDarkMode = isDark;
+    SupabaseService.saveThemePreference(_isDarkMode);
+    notifyListeners();
   }
 }

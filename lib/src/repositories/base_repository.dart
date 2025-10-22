@@ -5,7 +5,7 @@ abstract class BaseRepository {
   // Check network connectivity
   Future<bool> hasNetworkConnection() async {
     final connectivityResult = await Connectivity().checkConnectivity();
-    return connectivityResult != ConnectivityResult.none;
+    return !connectivityResult.contains(ConnectivityResult.none);
   }
 
   // Check if Supabase is connected

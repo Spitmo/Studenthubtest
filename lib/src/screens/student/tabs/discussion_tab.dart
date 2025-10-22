@@ -32,27 +32,25 @@ class _DiscussionTabState extends State<DiscussionTab> {
           .select('*, users(name, roll_number)')
           .order('created_at', ascending: true);
 
-      if (response != null) {
-        final List<dynamic> messages = response;
-        setState(() {
-          _messages.clear();
-          _messages.addAll(messages.map((msg) {
-            final user = msg['users'] ?? {};
-            return _Msg(
-              msg['message'] ?? '',
-              msg['user_id'] == SupabaseService.currentUser?.id,
-              DateTime.parse(
-                  msg['created_at'] ?? DateTime.now().toIso8601String()),
-              user['name'] ?? 'Unknown',
-              user['roll_number'] ?? '', // ADD ROLL NUMBER
-            );
-          }).toList());
-          _isLoading = false;
-        });
+      final List<dynamic> messages = response;
+      setState(() {
+        _messages.clear();
+        _messages.addAll(messages.map((msg) {
+          final user = msg['users'] ?? {};
+          return _Msg(
+            msg['message'] ?? '',
+            msg['user_id'] == SupabaseService.currentUser?.id,
+            DateTime.parse(
+                msg['created_at'] ?? DateTime.now().toIso8601String()),
+            user['name'] ?? 'Unknown',
+            user['roll_number'] ?? '', // ADD ROLL NUMBER
+          );
+        }).toList());
+        _isLoading = false;
+      });
 
-        // Scroll to bottom after loading
-        _scrollToBottom();
-      }
+      // Scroll to bottom after loading
+      _scrollToBottom();
     } catch (e) {
       print('Error loading messages: $e');
       // Fallback to dummy data
@@ -115,7 +113,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
           callback: (payload) async {
             print('💬 Discussion Real-time: ${payload.eventType}');
 
-            if (payload.eventType == 'INSERT') {
+            if (payload.eventType == PostgresChangeEvent.insert) {
               // Fetch the new message with user data
               try {
                 final newMessage = await SupabaseService.client
@@ -124,28 +122,26 @@ class _DiscussionTabState extends State<DiscussionTab> {
                     .eq('id', payload.newRecord['id'])
                     .single();
 
-                if (newMessage != null) {
-                  final user = newMessage['users'] ?? {};
-                  final message = _Msg(
-                    newMessage['message'] ?? '',
-                    newMessage['user_id'] == SupabaseService.currentUser?.id,
-                    DateTime.parse(newMessage['created_at'] ??
-                        DateTime.now().toIso8601String()),
-                    user['name'] ?? 'Unknown',
-                    user['roll_number'] ?? '',
-                  );
+                final user = newMessage['users'] ?? {};
+                final message = _Msg(
+                  newMessage['message'] ?? '',
+                  newMessage['user_id'] == SupabaseService.currentUser?.id,
+                  DateTime.parse(newMessage['created_at'] ??
+                      DateTime.now().toIso8601String()),
+                  user['name'] ?? 'Unknown',
+                  user['roll_number'] ?? '',
+                );
 
-                  if (mounted) {
-                    setState(() {
-                      _messages.add(message);
-                    });
-                    _scrollToBottom();
-                  }
+                if (mounted) {
+                  setState(() {
+                    _messages.add(message);
+                  });
+                  _scrollToBottom();
+                }
 
-                  // Show notification for others' messages
-                  if (!message.isMine) {
-                    _showNewMessageNotification(message.sender, message.text);
-                  }
+                // Show notification for others' messages
+                if (!message.isMine) {
+                  _showNewMessageNotification(message.sender, message.text);
                 }
               } catch (e) {
                 print('Error fetching new message: $e');
@@ -234,7 +230,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
             color: scheme.surface,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -245,7 +241,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
               Stack(
                 children: [
                   CircleAvatar(
-                    backgroundColor: scheme.primary.withOpacity(0.1),
+                    backgroundColor: scheme.primary.withValues(alpha: 0.1),
                     child: Icon(
                       Icons.forum_rounded,
                       color: scheme.primary,
@@ -320,7 +316,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
                           Icon(
                             Icons.forum_outlined,
                             size: 64,
-                            color: scheme.onSurface.withOpacity(0.3),
+                            color: scheme.onSurface.withValues(alpha: 0.3),
                           ),
                           SizedBox(height: 16),
                           Text(
@@ -334,7 +330,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(
-                                  color: scheme.onSurface.withOpacity(0.6),
+                                  color: scheme.onSurface.withValues(alpha: 0.6),
                                 ),
                           ),
                         ],
@@ -365,7 +361,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
               color: scheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, -2),
                 ),
@@ -381,12 +377,12 @@ class _DiscussionTabState extends State<DiscussionTab> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide:
-                            BorderSide(color: scheme.outline.withOpacity(0.3)),
+                            BorderSide(color: scheme.outline.withValues(alpha: 0.3)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide:
-                            BorderSide(color: scheme.outline.withOpacity(0.3)),
+                            BorderSide(color: scheme.outline.withValues(alpha: 0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
@@ -436,7 +432,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
           if (!isMine) ...[
             CircleAvatar(
               radius: 16,
-              backgroundColor: scheme.primary.withOpacity(0.1),
+              backgroundColor: scheme.primary.withValues(alpha: 0.1),
               child: Text(
                 message.sender.substring(0, 1),
                 style: TextStyle(
@@ -464,7 +460,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -479,7 +475,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
                         Text(
                           message.sender,
                           style: TextStyle(
-                            color: textColor.withOpacity(0.7),
+                            color: textColor.withValues(alpha: 0.7),
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -488,7 +484,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
                         Text(
                           '(${message.rollNumber})',
                           style: TextStyle(
-                            color: textColor.withOpacity(0.5),
+                            color: textColor.withValues(alpha: 0.5),
                             fontSize: 10,
                           ),
                         ),
@@ -506,7 +502,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
                   Text(
                     DateFormat('h:mm a').format(message.ts),
                     style: TextStyle(
-                      color: textColor.withOpacity(0.6),
+                      color: textColor.withValues(alpha: 0.6),
                       fontSize: 11,
                     ),
                   ),
@@ -518,7 +514,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
             const SizedBox(width: 8),
             CircleAvatar(
               radius: 16,
-              backgroundColor: scheme.primary.withOpacity(0.2),
+              backgroundColor: scheme.primary.withValues(alpha: 0.2),
               child: Text(
                 'Y',
                 style: TextStyle(

@@ -196,7 +196,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 Text(
                   'Name: ${auth.userName ?? 'N/A'}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: scheme.surface.withOpacity(0.8),
+                    color: scheme.surface.withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -249,7 +249,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return ListTile(
       leading: Icon(
         icon,
-        color: isSelected ? scheme.primary : scheme.onSurface.withOpacity(0.6),
+        color: isSelected ? scheme.primary : scheme.onSurface.withValues(alpha: 0.6),
       ),
       title: Text(
         title,
@@ -259,7 +259,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
       ),
       selected: isSelected,
-      selectedTileColor: scheme.primary.withOpacity(0.1),
+      selectedTileColor: scheme.primary.withValues(alpha: 0.1),
       onTap: () {
         setState(() => _selectedIndex = index);
         Navigator.pop(context);
@@ -323,7 +323,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     title: 'Admin Activities',
                     value: '47',
                     icon: Icons.admin_panel_settings_rounded,
-                    color: primary.withOpacity(0.8),
+                    color: primary.withValues(alpha: 0.8),
                   ),
                 ],
               );
@@ -382,7 +382,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
+                    color: color.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: color, size: 20),
@@ -391,7 +391,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
@@ -428,7 +428,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Text(
               title,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 fontSize: 12,
               ),
             ),
@@ -441,7 +441,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildActivityItem(String title, String time, IconData icon) {
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
         child: Icon(icon, color: Theme.of(context).colorScheme.primary),
       ),
       title: Text(title),
@@ -482,7 +482,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     Icon(
                       Icons.event_note_rounded,
                       size: 64,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -493,7 +493,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     Text(
                       'Create your first event to get started',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                               ),
                             ),
                           ],
@@ -511,7 +511,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 return Card(
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                       child: Text(
                         '${event.date.day}',
                         style: TextStyle(
@@ -533,7 +533,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         Text(
                           DateFormat('MMM yyyy').format(event.date),
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -614,7 +614,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           Icon(
                             Icons.cloud_upload_rounded,
                             size: 64,
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
                           ),
                 const SizedBox(height: 16),
                           Text(
@@ -625,7 +625,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           Text(
                             'All uploads have been processed',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                           ),
                         ],
@@ -638,7 +638,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
                               leading: CircleAvatar(
-                                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                                 child: const Icon(Icons.insert_drive_file_rounded),
                               ),
                               title: Text(_pending[i].filename),
@@ -650,7 +650,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                   Text(
                                     _ageString(_pending[i].ts),
                                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                     ),
                                   ),
                                 ],
@@ -773,7 +773,7 @@ class _UserList extends StatelessWidget {
         return Card(
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               child: Text(
                 user.name.substring(0, 1),
                 style: TextStyle(

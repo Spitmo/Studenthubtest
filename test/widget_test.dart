@@ -34,7 +34,7 @@ DEBUG_MODE=true
     await tester.pumpAndSettle();
 
     // Verify that we can find the StudentHub title
-    expect(find.text('StudentHub'), findsAtLeastOneWidget);
+    expect(find.text('StudentHub'), findsAtLeast(1));
     
     // Should show login elements
     expect(find.text('Roll Number'), findsOneWidget);
@@ -61,8 +61,7 @@ DEBUG_MODE=true
 
     // Find and tap the theme toggle button
     final themeButton = find.byIcon(Icons.dark_mode_rounded);
-    if (await tester.binding.defaultBinaryMessenger
-        .handlePlatformMessage('flutter/platform', null) != null) {
+    if (themeButton.evaluate().isNotEmpty) {
       await tester.tap(themeButton);
       await tester.pump();
       

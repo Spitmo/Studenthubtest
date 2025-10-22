@@ -5,7 +5,6 @@ ThemeData buildLightTheme() {
   const secondary = Color(0xFFA3CEF1); // pastel blue
   const background = Color(0xFFF7F9FC); // near-white
   const surface = Color(0xFFFFFFFF);
-  const accent = Color(0xFFF6C6EA); // pastel pink
 
   const colorScheme = ColorScheme.light(
     primary: primary,
@@ -68,7 +67,6 @@ ThemeData buildDarkTheme() {
   const secondary = Color(0xFFA3CEF1); // pastel blue
   const background = Color(0xFF121212); // dark background
   const surface = Color(0xFF1E1E1E); // dark surface
-  const accent = Color(0xFFF6C6EA); // pastel pink
 
   const colorScheme = ColorScheme.dark(
     primary: primary,

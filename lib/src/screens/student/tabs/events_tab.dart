@@ -38,7 +38,7 @@ class _EventsTabState extends State<EventsTab> {
             _loadEvents();
 
             // Show notification for new events
-            if (payload.eventType == 'INSERT') {
+            if (payload.eventType == PostgresChangeEvent.insert) {
               _showNewEventNotification(
                   payload.newRecord['title'] ?? 'New Event');
             }
@@ -136,7 +136,6 @@ class _EventsTabState extends State<EventsTab> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final df = DateFormat('EEE, d MMM');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -159,7 +158,7 @@ class _EventsTabState extends State<EventsTab> {
                     Text(
                       'Stay updated with all campus events and activities',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurface.withOpacity(0.6),
+                            color: scheme.onSurface.withValues(alpha: 0.6),
                           ),
                     ),
                   ],
@@ -183,7 +182,7 @@ class _EventsTabState extends State<EventsTab> {
                       decoration: BoxDecoration(
                         color: Colors.green,
                         shape: BoxShape.circle,
-                        border: Border.all(color: scheme.background, width: 1),
+                        border: Border.all(color: scheme.surface, width: 1),
                       ),
                     ),
                   ),
@@ -238,7 +237,7 @@ class _EventsTabState extends State<EventsTab> {
                     Icon(
                       Icons.event_busy_rounded,
                       size: 64,
-                      color: scheme.onSurface.withOpacity(0.3),
+                      color: scheme.onSurface.withValues(alpha: 0.3),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -249,7 +248,7 @@ class _EventsTabState extends State<EventsTab> {
                     Text(
                       'Check back later for upcoming events',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurface.withOpacity(0.6),
+                            color: scheme.onSurface.withValues(alpha: 0.6),
                           ),
                     ),
                   ],
@@ -265,9 +264,9 @@ class _EventsTabState extends State<EventsTab> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -321,7 +320,7 @@ class _EventsTabState extends State<EventsTab> {
                                     height: 60,
                                     decoration: BoxDecoration(
                                       color: _getCategoryColor(event.category)
-                                          .withOpacity(0.1),
+                                          .withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Column(
@@ -370,7 +369,7 @@ class _EventsTabState extends State<EventsTab> {
                                           decoration: BoxDecoration(
                                             color: _getCategoryColor(
                                                     event.category)
-                                                .withOpacity(0.1),
+                                                .withValues(alpha: 0.1),
                                             borderRadius:
                                                 BorderRadius.circular(4),
                                           ),
@@ -392,7 +391,7 @@ class _EventsTabState extends State<EventsTab> {
                                               .bodyMedium
                                               ?.copyWith(
                                                 color: scheme.onSurface
-                                                    .withOpacity(0.7),
+                                                    .withValues(alpha: 0.7),
                                               ),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
@@ -405,7 +404,7 @@ class _EventsTabState extends State<EventsTab> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: Colors.green.withOpacity(0.1),
+                                        color: Colors.green.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
@@ -429,7 +428,7 @@ class _EventsTabState extends State<EventsTab> {
                                   Icon(
                                     Icons.calendar_today_rounded,
                                     size: 16,
-                                    color: scheme.onSurface.withOpacity(0.6),
+                                    color: scheme.onSurface.withValues(alpha: 0.6),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
@@ -440,14 +439,14 @@ class _EventsTabState extends State<EventsTab> {
                                         .bodySmall
                                         ?.copyWith(
                                           color:
-                                              scheme.onSurface.withOpacity(0.6),
+                                              scheme.onSurface.withValues(alpha: 0.6),
                                         ),
                                   ),
                                   const SizedBox(width: 16),
                                   Icon(
                                     Icons.access_time_rounded,
                                     size: 16,
-                                    color: scheme.onSurface.withOpacity(0.6),
+                                    color: scheme.onSurface.withValues(alpha: 0.6),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
@@ -457,7 +456,7 @@ class _EventsTabState extends State<EventsTab> {
                                         .bodySmall
                                         ?.copyWith(
                                           color:
-                                              scheme.onSurface.withOpacity(0.6),
+                                              scheme.onSurface.withValues(alpha: 0.6),
                                         ),
                                   ),
                                 ],
@@ -556,7 +555,7 @@ class _EventsTabState extends State<EventsTab> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: _getCategoryColor(event.category).withOpacity(0.1),
+                color: _getCategoryColor(event.category).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(

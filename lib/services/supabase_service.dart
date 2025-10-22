@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../src/models/file_upload_model.dart';
 
 class SupabaseService {
   static const String supabaseUrl = 'https://qbutsawjtzvnoffkcsor.supabase.co';
@@ -221,10 +223,10 @@ class SupabaseService {
         .count(CountOption.exact); // Chained .count()
 
     return {
-      'totalStudents': totalStudents.count ?? 0,
-      'pendingUploads': pendingUploads.count ?? 0,
-      'totalEvents': totalEvents.count ?? 0,
-      'totalUsers': totalUsers.count ?? 0,
+      'totalStudents': totalStudents.count,
+      'pendingUploads': pendingUploads.count,
+      'totalEvents': totalEvents.count,
+      'totalUsers': totalUsers.count,
     };
   }
 
@@ -273,5 +275,96 @@ class SupabaseService {
     await prefs.remove('roll_number');
     await prefs.remove('user_name');
     await prefs.remove('user_email');
+  }
+
+  // Connection check
+  static Future<bool> isConnected() async {
+    try {
+      await client.from('user_profiles').select('id').limit(1);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // File Storage Methods
+  static Future<String> uploadFile(
+    File file,
+    String filename,
+    String bucket,
+  ) async {
+    final bytes = await file.readAsBytes();
+    final filePath = '${DateTime.now().millisecondsSinceEpoch}_$filename';
+    
+    await client.storage.from(bucket).uploadBinary(
+      filePath,
+      bytes,
+    );
+    
+    return client.storage.from(bucket).getPublicUrl(filePath);
+  }
+
+  static Future<void> deleteFile(String path, String bucket) async {
+    await client.storage.from(bucket).remove([path]);
+  }
+
+  // File Upload Management with Model
+  static Future<FileUploadModel> createFileUploadWithModel({
+    required String filename,
+    required String originalName,
+    required String remark,
+    required String uploadedBy,
+    required String fileUrl,
+    required int fileSize,
+    required String mimeType,
+    List<String> tags = const [],
+  }) async {
+    final data = {
+      'filename': filename,
+      'original_name': originalName,
+      'remark': remark,
+      'uploaded_by': uploadedBy,
+      'file_url': fileUrl,
+      'file_size': fileSize,
+      'mime_type': mimeType,
+      'tags': tags,
+      'status': 'pending',
+      'created_at': DateTime.now().toIso8601String(),
+    };
+    
+    final response = await client
+        .from('file_uploads')
+        .insert(data)
+        .select()
+        .single();
+    
+    return FileUploadModel.fromJson(response);
+  }
+
+  static Future<List<FileUploadModel>> getFileUploads({
+    UploadStatus? status,
+  }) async {
+    var query = client.from('file_uploads').select();
+    
+    if (status != null) {
+      query = query.eq('status', status.name);
+    }
+    
+    final response = await query.order('created_at', ascending: false);
+    return (response as List)
+        .map((json) => FileUploadModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<List<FileUploadModel>> searchFiles(String query) async {
+    final response = await client
+        .from('file_uploads')
+        .select()
+        .or('filename.ilike.%$query%,remark.ilike.%$query%,tags.cs.{$query}')
+        .order('created_at', ascending: false);
+    
+    return (response as List)
+        .map((json) => FileUploadModel.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 }

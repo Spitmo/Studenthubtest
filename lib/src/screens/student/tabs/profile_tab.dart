@@ -26,7 +26,7 @@ class ProfileTab extends StatelessWidget {
           Text(
             'Manage your account and preferences',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurface.withOpacity(0.6),
+                  color: scheme.onSurface.withValues(alpha: 0.6),
                 ),
           ),
           const SizedBox(height: 24),
@@ -40,7 +40,7 @@ class ProfileTab extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 50,
-                    backgroundColor: scheme.primary.withOpacity(0.1),
+                    backgroundColor: scheme.primary.withValues(alpha: 0.1),
                     child: Icon(
                       Icons.person_rounded,
                       size: 50,
@@ -58,7 +58,7 @@ class ProfileTab extends StatelessWidget {
                   Text(
                     'Name: ${auth.userName ?? 'N/A'}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurface.withOpacity(0.7),
+                          color: scheme.onSurface.withValues(alpha: 0.7),
                         ),
                   ),
                   const SizedBox(height: 8),
@@ -66,7 +66,7 @@ class ProfileTab extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: scheme.primary.withOpacity(0.1),
+                      color: scheme.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
@@ -264,7 +264,7 @@ class ProfileTab extends StatelessWidget {
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withOpacity(0.6),
+                        .withValues(alpha: 0.6),
                   ),
               textAlign: TextAlign.center,
             ),
@@ -285,7 +285,7 @@ class ProfileTab extends StatelessWidget {
 
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: scheme.primary.withOpacity(0.1),
+        backgroundColor: scheme.primary.withValues(alpha: 0.1),
         child: Icon(icon, color: scheme.primary),
       ),
       title: Text(title),
@@ -293,7 +293,7 @@ class ProfileTab extends StatelessWidget {
       trailing: Icon(
         Icons.arrow_forward_ios_rounded,
         size: 16,
-        color: scheme.onSurface.withOpacity(0.4),
+        color: scheme.onSurface.withValues(alpha: 0.4),
       ),
       onTap: onTap,
     );

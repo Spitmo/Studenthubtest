@@ -110,11 +110,14 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
 
   String _getCategoryFromFilename(String filename) {
     final lower = filename.toLowerCase();
-    if (lower.contains('assignment') || lower.contains('assign'))
+    if (lower.contains('assignment') || lower.contains('assign')) {
       return 'Assignment';
+    }
     if (lower.contains('lab') ||
         lower.contains('practical') ||
-        lower.contains('exp')) return 'Practical';
+        lower.contains('exp')) {
+      return 'Practical';
+    }
     return 'Regular';
   }
 
@@ -302,7 +305,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
           decoration: BoxDecoration(
             color: scheme.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: scheme.outline.withOpacity(0.2)),
+            border: Border.all(color: scheme.outline.withValues(alpha: 0.2)),
           ),
           child: TabBar(
             controller: _tabController,
@@ -312,7 +315,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
               borderRadius: BorderRadius.circular(8),
             ),
             labelColor: Colors.white,
-            unselectedLabelColor: scheme.onSurface.withOpacity(0.6),
+            unselectedLabelColor: scheme.onSurface.withValues(alpha: 0.6),
             labelStyle: const TextStyle(fontWeight: FontWeight.w600),
             onTap: (index) {
               if (mounted) {
@@ -384,7 +387,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
             Icon(
               Icons.folder_open_rounded,
               size: 64,
-              color: scheme.onSurface.withOpacity(0.3),
+              color: scheme.onSurface.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
@@ -395,7 +398,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
             Text(
               'Upload your first file to get started',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurface.withOpacity(0.6),
+                    color: scheme.onSurface.withValues(alpha: 0.6),
                   ),
             ),
           ],
@@ -413,7 +416,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: _getStatusColor(item.status).withOpacity(0.1),
+              backgroundColor: _getStatusColor(item.status).withValues(alpha: 0.1),
               child: Icon(
                 _getStatusIcon(item.status),
                 color: _getStatusColor(item.status),
@@ -435,7 +438,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(item.status).withOpacity(0.1),
+                        color: _getStatusColor(item.status).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -452,7 +455,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: scheme.primary.withOpacity(0.1),
+                        color: scheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -469,7 +472,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                       child: Text(
                         DateFormat('MMM d, h:mm a').format(item.timestamp),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurface.withOpacity(0.6),
+                              color: scheme.onSurface.withValues(alpha: 0.6),
                             ),
                         overflow: TextOverflow.ellipsis,
                       ),

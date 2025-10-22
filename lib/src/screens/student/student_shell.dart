@@ -210,7 +210,7 @@ class _StudentShellState extends State<StudentShell> {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [scheme.primary, scheme.primary.withOpacity(0.8)],
+                    colors: [scheme.primary, scheme.primary.withValues(alpha: 0.8)],
                   ),
                 ),
                 child: Column(
@@ -218,7 +218,7 @@ class _StudentShellState extends State<StudentShell> {
                   children: [
                     CircleAvatar(
                       radius: 30,
-                      backgroundColor: Colors.white.withOpacity(0.2),
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
                       child: Icon(
                         Icons.person_rounded,
                         size: 40,
@@ -237,7 +237,7 @@ class _StudentShellState extends State<StudentShell> {
                     Text(
                       'Name: ${auth.userName ?? 'N/A'}',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 14,
                       ),
                     ),
@@ -246,7 +246,7 @@ class _StudentShellState extends State<StudentShell> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -369,7 +369,7 @@ class _StudentShellState extends State<StudentShell> {
                     Text(
                       'Your Uploads: ${_analytics['totalUploads'] ?? 0}',
                       style: TextStyle(
-                        color: scheme.onSurface.withOpacity(0.6),
+                        color: scheme.onSurface.withValues(alpha: 0.6),
                         fontSize: 11,
                       ),
                     ),
@@ -396,7 +396,7 @@ class _StudentShellState extends State<StudentShell> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: isSelected ? scheme.primary.withOpacity(0.1) : null,
+        color: isSelected ? scheme.primary.withValues(alpha: 0.1) : null,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
@@ -404,7 +404,7 @@ class _StudentShellState extends State<StudentShell> {
           icon,
           color: isSelected
               ? scheme.primary
-              : textColor ?? scheme.onSurface.withOpacity(0.7),
+              : textColor ?? scheme.onSurface.withValues(alpha: 0.7),
         ),
         title: Text(
           title,
@@ -431,12 +431,12 @@ class _StudentShellState extends State<StudentShell> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [scheme.primary, scheme.primary.withOpacity(0.8)],
+          colors: [scheme.primary, scheme.primary.withValues(alpha: 0.8)],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: scheme.primary.withOpacity(0.3),
+            color: scheme.primary.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -463,7 +463,7 @@ class _StudentShellState extends State<StudentShell> {
                     Text(
                       'Name: ${auth.userName ?? 'N/A'}',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 14, // REDUCED FONT SIZE
                       ),
                     ),
@@ -472,7 +472,7 @@ class _StudentShellState extends State<StudentShell> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
@@ -489,7 +489,7 @@ class _StudentShellState extends State<StudentShell> {
               ),
               CircleAvatar(
                 radius: 20, // FURTHER REDUCED SIZE
-                backgroundColor: Colors.white.withOpacity(0.2),
+                backgroundColor: Colors.white.withValues(alpha: 0.2),
                 child: Icon(
                   Icons.person_rounded,
                   size: 24, // FURTHER REDUCED SIZE
@@ -540,7 +540,7 @@ class _StudentShellState extends State<StudentShell> {
     return Container(
       padding: const EdgeInsets.all(6), // FURTHER REDUCED PADDING
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -562,7 +562,7 @@ class _StudentShellState extends State<StudentShell> {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 9, // FURTHER REDUCED FONT SIZE
             ),
             textAlign: TextAlign.center,

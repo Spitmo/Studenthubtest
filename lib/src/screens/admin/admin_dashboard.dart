@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../../src/services/supabase_service.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -14,26 +15,39 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _selectedIndex = 0;
-  
+
   final List<_PendingUpload> _pending = [
-    _PendingUpload('note_1.pdf', 'Please review chapter 1', DateTime.now().subtract(const Duration(hours: 2))),
-    _PendingUpload('note_2.pdf', 'Lab notes', DateTime.now().subtract(const Duration(days: 1))),
-    _PendingUpload('assignment_3.pdf', 'Math homework', DateTime.now().subtract(const Duration(hours: 5))),
+    _PendingUpload('note_1.pdf', 'Please review chapter 1',
+        DateTime.now().subtract(const Duration(hours: 2))),
+    _PendingUpload('note_2.pdf', 'Lab notes',
+        DateTime.now().subtract(const Duration(days: 1))),
+    _PendingUpload('assignment_3.pdf', 'Math homework',
+        DateTime.now().subtract(const Duration(hours: 5))),
   ];
-  
+
   final List<_AdminEvent> _events = [
-    _AdminEvent('Orientation Day', DateTime.now().add(const Duration(days: 2)), 'Welcome new students'),
-    _AdminEvent('Hackathon 2024', DateTime.now().add(const Duration(days: 10)), '24-hour coding challenge'),
-    _AdminEvent('Guest Lecture', DateTime.now().add(const Duration(days: 20)), 'AI in Education by Dr. Smith'),
-    _AdminEvent('Career Fair', DateTime.now().add(const Duration(days: 30)), 'Meet with top companies'),
-    _AdminEvent('Cultural Festival', DateTime.now().add(const Duration(days: 45)), 'Celebrate diversity'),
-    _AdminEvent('Sports Day', DateTime.now().add(const Duration(days: 60)), 'Annual sports competition'),
-    _AdminEvent('Graduation Ceremony', DateTime.now().add(const Duration(days: 90)), 'Class of 2024 graduation'),
+    _AdminEvent('Orientation Day', DateTime.now().add(const Duration(days: 2)),
+        'Welcome new students'),
+    _AdminEvent('Hackathon 2024', DateTime.now().add(const Duration(days: 10)),
+        '24-hour coding challenge'),
+    _AdminEvent('Guest Lecture', DateTime.now().add(const Duration(days: 20)),
+        'AI in Education by Dr. Smith'),
+    _AdminEvent('Career Fair', DateTime.now().add(const Duration(days: 30)),
+        'Meet with top companies'),
+    _AdminEvent('Cultural Festival',
+        DateTime.now().add(const Duration(days: 45)), 'Celebrate diversity'),
+    _AdminEvent('Sports Day', DateTime.now().add(const Duration(days: 60)),
+        'Annual sports competition'),
+    _AdminEvent(
+        'Graduation Ceremony',
+        DateTime.now().add(const Duration(days: 90)),
+        'Class of 2024 graduation'),
   ];
-  
+
   final _eventTitle = TextEditingController();
   final _eventDesc = TextEditingController();
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
+  TimeOfDay _selectedTime = TimeOfDay.now();
   final _eventFormKey = GlobalKey<FormState>();
 
   // Demo users for role management
@@ -59,13 +73,52 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void _approve(int i) => setState(() => _pending.removeAt(i));
   void _reject(int i) => setState(() => _pending.removeAt(i));
 
-  void _addEvent() {
+  void _addEvent() async {
     if (!_eventFormKey.currentState!.validate()) return;
-    setState(() {
-      _events.add(_AdminEvent(_eventTitle.text.trim(), _selectedDate, _eventDesc.text.trim()));
-      _eventTitle.clear();
-      _eventDesc.clear();
-    });
+
+    try {
+      final currentUser = SupabaseService.client.auth.currentUser;
+
+      // Combine date and time
+      final eventDateTime = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _selectedTime.hour,
+        _selectedTime.minute,
+      );
+
+      // Insert into Supabase
+      await SupabaseService.createEvent(
+        title: _eventTitle.text.trim(),
+        date: eventDateTime,
+        description: _eventDesc.text.trim(),
+        createdBy: currentUser?.id ?? 'unknown_user',
+      );
+
+      // Update local state
+      setState(() {
+        _events.add(_AdminEvent(
+            _eventTitle.text.trim(), eventDateTime, _eventDesc.text.trim()));
+        _eventTitle.clear();
+        _eventDesc.clear();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Event created successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('Error creating event: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please check event details and try again'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _confirmLogout() async {
@@ -90,8 +143,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ],
       ),
     );
+
     if (confirmed == true && mounted) {
-      context.read<AuthProvider>().logout();
+      try {
+        await SupabaseService.signOut();
+        // Optional: Navigate to login screen if needed
+      } catch (e) {
+        print('Error during logout: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error logging out. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -101,7 +168,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final scheme = Theme.of(context).colorScheme;
     final primary = scheme.primary;
     final secondary = scheme.secondary;
-    
+
     final List<Widget> pages = [
       _buildAnalyticsPage(context, primary, secondary),
       _buildEventsPage(context, df),
@@ -122,7 +189,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 icon: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: Icon(
-                    themeProvider.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                    themeProvider.isDarkMode
+                        ? Icons.light_mode_rounded
+                        : Icons.dark_mode_rounded,
                     key: ValueKey(themeProvider.isDarkMode),
                   ),
                 ),
@@ -139,29 +208,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       drawer: _buildNavigationDrawer(context),
       body: pages[_selectedIndex],
-      floatingActionButton: _selectedIndex == 1 ? FloatingActionButton.extended(
-        onPressed: _showAddEventDialog,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Add Event'),
-        backgroundColor: primary,
-      ) : null,
+      floatingActionButton: _selectedIndex == 1
+          ? FloatingActionButton.extended(
+              onPressed: _showAddEventDialog,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add Event'),
+              backgroundColor: primary,
+            )
+          : null,
     );
   }
 
   String _getPageTitle() {
     switch (_selectedIndex) {
-      case 0: return 'Analytics Dashboard';
-      case 1: return 'Events Management';
-      case 2: return 'User Management';
-      case 3: return 'Uploads Management';
-      default: return 'Admin Dashboard';
+      case 0:
+        return 'Analytics Dashboard';
+      case 1:
+        return 'Events Management';
+      case 2:
+        return 'User Management';
+      case 3:
+        return 'Uploads Management';
+      default:
+        return 'Admin Dashboard';
     }
   }
 
   Widget _buildNavigationDrawer(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final auth = context.watch<AuthProvider>();
-    
+
     return Drawer(
       child: Column(
         children: [
@@ -189,15 +265,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 Text(
                   'Admin Panel',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: scheme.surface,
-                    fontWeight: FontWeight.bold,
-                  ),
+                        color: scheme.surface,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
                 Text(
                   'Name: ${auth.userName ?? 'N/A'}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: scheme.surface.withValues(alpha: 0.8),
-                  ),
+                        color: scheme.surface.withValues(alpha: 0.8),
+                      ),
                 ),
               ],
             ),
@@ -238,18 +314,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildDrawerItem(BuildContext context, {
+  Widget _buildDrawerItem(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required int index,
   }) {
     final isSelected = _selectedIndex == index;
     final scheme = Theme.of(context).colorScheme;
-    
+
     return ListTile(
       leading: Icon(
         icon,
-        color: isSelected ? scheme.primary : scheme.onSurface.withValues(alpha: 0.6),
+        color: isSelected
+            ? scheme.primary
+            : scheme.onSurface.withValues(alpha: 0.6),
       ),
       title: Text(
         title,
@@ -267,7 +346,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildAnalyticsPage(BuildContext context, Color primary, Color secondary) {
+  Widget _buildAnalyticsPage(
+      BuildContext context, Color primary, Color secondary) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -276,11 +356,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Text(
             'Analytics Overview',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 16),
-          
+
           // Analytics Cards Grid
           LayoutBuilder(
             builder: (context, constraints) {
@@ -329,27 +409,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               );
             },
           ),
-          
+
           const SizedBox(height: 24),
           Text(
             'Recent Activity',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+                  fontWeight: FontWeight.w600,
+                ),
           ),
           const SizedBox(height: 12),
-              Card(
-                child: Padding(
+          Card(
+            child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
-                                    children: [
-                  _buildActivityItem('New student registration', '2 hours ago', Icons.person_add_rounded),
+                children: [
+                  _buildActivityItem('New student registration', '2 hours ago',
+                      Icons.person_add_rounded),
                   const Divider(),
-                  _buildActivityItem('Event created: Hackathon 2024', '5 hours ago', Icons.event_rounded),
+                  _buildActivityItem('Event created: Hackathon 2024',
+                      '5 hours ago', Icons.event_rounded),
                   const Divider(),
-                  _buildActivityItem('File upload approved', '1 day ago', Icons.check_circle_rounded),
+                  _buildActivityItem('File upload approved', '1 day ago',
+                      Icons.check_circle_rounded),
                   const Divider(),
-                  _buildActivityItem('User role updated', '2 days ago', Icons.admin_panel_settings_rounded),
+                  _buildActivityItem('User role updated', '2 days ago',
+                      Icons.admin_panel_settings_rounded),
                 ],
               ),
             ),
@@ -359,7 +443,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildAnalyticsCard(BuildContext context, {
+  Widget _buildAnalyticsCard(
+    BuildContext context, {
     required String title,
     required String value,
     required IconData icon,
@@ -389,7 +474,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
@@ -406,10 +492,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       Text(
                         '4.2%',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.green,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
-                        ),
+                              color: Colors.green,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 10,
+                            ),
                       ),
                     ],
                   ),
@@ -420,17 +506,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Text(
               value,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: 24,
-              ),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
+                  ),
             ),
             const SizedBox(height: 2),
             Text(
               title,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                fontSize: 12,
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                    fontSize: 12,
+                  ),
             ),
           ],
         ),
@@ -441,7 +530,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildActivityItem(String title, String time, IconData icon) {
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+        backgroundColor:
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
         child: Icon(icon, color: Theme.of(context).colorScheme.primary),
       ),
       title: Text(title),
@@ -454,7 +544,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -462,8 +552,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               Text(
                 'Events Management',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               ElevatedButton.icon(
                 onPressed: _showAddEventDialog,
@@ -474,15 +564,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           const SizedBox(height: 16),
           if (_events.isEmpty)
-              Card(
-                child: Padding(
+            Card(
+              child: Padding(
                 padding: const EdgeInsets.all(32),
-                    child: Column(
-                      children: [
+                child: Column(
+                  children: [
                     Icon(
                       Icons.event_note_rounded,
                       size: 64,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.3),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -493,10 +586,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     Text(
                       'Create your first event to get started',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                              ),
-                            ),
-                          ],
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                    ),
+                  ],
                 ),
               ),
             )
@@ -511,7 +607,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 return Card(
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.1),
                       child: Text(
                         '${event.date.day}',
                         style: TextStyle(
@@ -532,9 +631,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         ),
                         Text(
                           DateFormat('MMM yyyy').format(event.date),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.6),
+                                  ),
                         ),
                       ],
                     ),
@@ -552,57 +655,58 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
             'User Management',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 16),
-              Card(
-                child: Padding(
+          Card(
+            child: Padding(
               padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: _userSearch,
-                        decoration: const InputDecoration(
-                          labelText: 'Search users',
-                          prefixIcon: Icon(Icons.search_rounded),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _userSearch,
+                    decoration: const InputDecoration(
+                      labelText: 'Search users',
+                      prefixIcon: Icon(Icons.search_rounded),
                       border: OutlineInputBorder(),
-                        ),
-                        onChanged: (_) => setState(() {}),
-                      ),
-                  const SizedBox(height: 16),
-                      _UserList(
-                        users: _users,
-                        filter: _userSearch.text,
-                        onRoleChanged: (index, role) => setState(() => _users[index] = _users[index].copyWith(role: role)),
-                      ),
-                    ],
+                    ),
+                    onChanged: (_) => setState(() {}),
                   ),
-                ),
-              ),
+                  const SizedBox(height: 16),
+                  _UserList(
+                    users: _users,
+                    filter: _userSearch.text,
+                    onRoleChanged: (index, role) => setState(() =>
+                        _users[index] = _users[index].copyWith(role: role)),
+                  ),
                 ],
               ),
-            );
-          }
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildUploadsPage(BuildContext context) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
             'Uploads Management',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
-                const SizedBox(height: 16),
+          const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -614,9 +718,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           Icon(
                             Icons.cloud_upload_rounded,
                             size: 64,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.3),
                           ),
-                const SizedBox(height: 16),
+                          const SizedBox(height: 16),
                           Text(
                             'No pending uploads',
                             style: Theme.of(context).textTheme.titleMedium,
@@ -624,9 +731,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           const SizedBox(height: 8),
                           Text(
                             'All uploads have been processed',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
                           ),
                         ],
                       ),
@@ -638,8 +751,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
                               leading: CircleAvatar(
-                                backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                                child: const Icon(Icons.insert_drive_file_rounded),
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.1),
+                                child:
+                                    const Icon(Icons.insert_drive_file_rounded),
                               ),
                               title: Text(_pending[i].filename),
                               subtitle: Column(
@@ -649,9 +766,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     _ageString(_pending[i].ts),
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.6),
+                                        ),
                                   ),
                                 ],
                               ),
@@ -661,12 +784,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                   IconButton(
                                     tooltip: 'Approve',
                                     onPressed: () => _approve(i),
-                                    icon: const Icon(Icons.check_circle_rounded, color: Colors.green),
+                                    icon: const Icon(Icons.check_circle_rounded,
+                                        color: Colors.green),
                                   ),
                                   IconButton(
                                     tooltip: 'Reject',
                                     onPressed: () => _reject(i),
-                                    icon: const Icon(Icons.cancel_rounded, color: Colors.red),
+                                    icon: const Icon(Icons.cancel_rounded,
+                                        color: Colors.red),
                                   ),
                                 ],
                               ),
@@ -691,14 +816,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           key: _eventFormKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-          children: [
+            children: [
               TextFormField(
                 controller: _eventTitle,
                 decoration: const InputDecoration(
                   labelText: 'Event Title',
                   prefixIcon: Icon(Icons.title_rounded),
                 ),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Title required' : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Title required' : null,
               ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
@@ -712,7 +838,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   if (d != null) setState(() => _selectedDate = d);
                 },
                 icon: const Icon(Icons.calendar_today_rounded),
-                label: Text(DateFormat('EEE, d MMM yyyy').format(_selectedDate)),
+                label:
+                    Text(DateFormat('EEE, d MMM yyyy').format(_selectedDate)),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final t = await showTimePicker(
+                    context: context,
+                    initialTime: _selectedTime,
+                  );
+                  if (t != null) setState(() => _selectedTime = t);
+                },
+                icon: const Icon(Icons.access_time_rounded),
+                label: Text(_selectedTime.format(context)),
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -723,10 +862,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   labelText: 'Description',
                   prefixIcon: Icon(Icons.description_rounded),
                 ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
-      ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -751,7 +890,8 @@ class _UserList extends StatelessWidget {
   final List<_UserItem> users;
   final String filter;
   final void Function(int index, String role) onRoleChanged;
-  const _UserList({required this.users, required this.filter, required this.onRoleChanged});
+  const _UserList(
+      {required this.users, required this.filter, required this.onRoleChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -773,7 +913,8 @@ class _UserList extends StatelessWidget {
         return Card(
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              backgroundColor:
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               child: Text(
                 user.name.substring(0, 1),
                 style: TextStyle(
@@ -820,7 +961,8 @@ class _UserItem {
   final String name;
   final String role;
   const _UserItem(this.name, this.role);
-  _UserItem copyWith({String? name, String? role}) => _UserItem(name ?? this.name, role ?? this.role);
+  _UserItem copyWith({String? name, String? role}) =>
+      _UserItem(name ?? this.name, role ?? this.role);
 }
 
 String _ageString(DateTime ts) {

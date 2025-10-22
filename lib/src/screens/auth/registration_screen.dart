@@ -16,7 +16,6 @@ class RegistrationScreen extends StatefulWidget {
 class _RegistrationScreenState extends State<RegistrationScreen> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _rollController = TextEditingController();
   final _accessCodeController = TextEditingController();
   late final AnimationController _animController;
   late final Animation<double> _fade;
@@ -35,7 +34,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> with SingleTick
   void dispose() {
     _animController.dispose();
     _nameController.dispose();
-    _rollController.dispose();
     _accessCodeController.dispose();
     super.dispose();
   }
@@ -57,12 +55,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> with SingleTick
         throw Exception('Invalid access code. Use "student123" for student or "admin123" for admin.');
       }
 
-      // Simulate registration process
-      await Future.delayed(const Duration(seconds: 1));
-      
       // For demo purposes, directly login with the provided credentials
-      auth.login(
-        name: _nameController.text.trim(),
+      await auth.login(
         accessCode: accessCode,
       );
 
@@ -160,15 +154,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> with SingleTick
                                       prefixIcon: Icon(Icons.person_outline_rounded),
                                     ),
                                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  TextFormField(
-                                    controller: _rollController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Roll Number',
-                                      prefixIcon: Icon(Icons.badge_outlined),
-                                    ),
-                                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Roll number is required' : null,
                                   ),
                                   const SizedBox(height: 12),
                                   TextFormField(

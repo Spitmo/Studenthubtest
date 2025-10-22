@@ -398,4 +398,165 @@ class SupabaseService {
       };
     }
   }
+
+  // ------------------ Authentication & Messaging Helpers ------------------
+
+  /// Get a user from the `users` table by id
+  static Future<Map<String, dynamic>?> getUserById(String userId) async {
+    try {
+      final response =
+          await client.from('users').select().eq('id', userId).maybeSingle();
+      if (response == null) return null;
+      return Map<String, dynamic>.from(response as Map);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Create a user in the `users` table.
+  /// Fields: id, name, rollNumber, email, role, access_code
+  static Future<void> createUser({
+    required String id,
+    required String name,
+    required String rollNumber,
+    required String email,
+    required String role,
+    required String accessCode,
+  }) async {
+    await client.from('users').insert({
+      'id': id,
+      'name': name,
+      'roll_number': rollNumber,
+      'email': email,
+      'role': role,
+      'access_code': accessCode,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// Get a user by the `access_code` field
+  static Future<Map<String, dynamic>?> getUserByAccessCode(
+      String accessCode) async {
+    try {
+      final response = await client
+          .from('users')
+          .select()
+          .eq('access_code', accessCode)
+          .maybeSingle();
+      if (response == null) return null;
+      return Map<String, dynamic>.from(response as Map);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Get ALL users by the `access_code` field (handles multiple users sharing same access code)
+  static Future<List<Map<String, dynamic>>> getUsersByAccessCode(
+      String accessCode) async {
+    try {
+      print('🔍 Fetching all users with access_code: $accessCode');
+      final response = await client
+          .from('users')
+          .select()
+          .eq('access_code', accessCode)
+          .order('created_at', ascending: true);
+
+      final users = _toList(response);
+      print('✅ Found ${users.length} user(s) with access_code: $accessCode');
+      return users;
+    } catch (e) {
+      print('❌ Error fetching users by access_code: $e');
+      return [];
+    }
+  }
+
+  /// Save minimal user session to SharedPreferences
+  static Future<void> saveUserSession(
+    String userId,
+    dynamic userRole, // enum or string
+    String rollNumber, {
+    String? userName,
+    String? userEmail,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_id', userId);
+      // If an enum is passed, convert to its name; if string, use directly
+      final roleString =
+          userRole is String ? userRole : userRole.toString().split('.').last;
+      await prefs.setString('user_role', roleString);
+      await prefs.setString('roll_number', rollNumber);
+      if (userName != null) await prefs.setString('user_name', userName);
+      if (userEmail != null) await prefs.setString('user_email', userEmail);
+    } catch (e) {
+      // Non-fatal: log and continue
+      print('❌ Error saving user session: $e');
+    }
+  }
+
+  /// Retrieve saved user session from SharedPreferences
+  /// Returns a map with keys: user_id, user_role, roll_number, user_name, user_email
+  static Future<Map<String, dynamic>> getUserSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return {
+        'user_id': prefs.getString('user_id'),
+        'user_role': prefs.getString('user_role'),
+        'roll_number': prefs.getString('roll_number'),
+        'user_name': prefs.getString('user_name'),
+        'user_email': prefs.getString('user_email'),
+      };
+    } catch (e) {
+      print('❌ Error reading user session: $e');
+      return {
+        'user_id': null,
+        'user_role': null,
+        'roll_number': null,
+        'user_name': null,
+        'user_email': null,
+      };
+    }
+  }
+
+  /// Clear stored user session
+  static Future<void> clearUserSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_id');
+      await prefs.remove('user_role');
+      await prefs.remove('roll_number');
+      await prefs.remove('user_name');
+      await prefs.remove('user_email');
+    } catch (e) {
+      print('❌ Error clearing user session: $e');
+    }
+  }
+
+  /// Send a message on behalf of a user. Validates the user exists.
+  static Future<void> sendMessage({
+    required String userId,
+    required String message,
+  }) async {
+    // Validate user exists
+    final user = await getUserById(userId);
+    if (user == null) {
+      throw Exception('User not found');
+    }
+
+    await client.from('messages').insert({
+      'user_id': userId,
+      'message': message,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// Get messages with user details joined.
+  static Future<List<Map<String, dynamic>>> getMessagesWithUsers() async {
+    final response = await client
+        .from('messages')
+        .select('*, users(id, name, roll_number, email)')
+        .order('created_at', ascending: true);
+
+    return _toList(response);
+  }
 }

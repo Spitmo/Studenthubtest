@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // ADD THIS
-import '../../../services/supabase_service.dart'; // ADD THIS
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
+import '../../../services/supabase_service.dart';
+import '../../../providers/auth_provider.dart';
 
 class DiscussionTab extends StatefulWidget {
   const DiscussionTab({super.key});
@@ -39,7 +41,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
           final user = msg['users'] ?? {};
           return _Msg(
             msg['message'] ?? '',
-            msg['user_id'] == SupabaseService.currentUser?.id,
+            msg['user_id'] == SupabaseService.client.auth.currentUser?.id,
             DateTime.parse(
                 msg['created_at'] ?? DateTime.now().toIso8601String()),
             user['name'] ?? 'Unknown',
@@ -55,6 +57,17 @@ class _DiscussionTabState extends State<DiscussionTab> {
       print('Error loading messages: $e');
       // Fallback to dummy data
       _loadDummyData();
+
+      // Show user-friendly error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to load messages. Showing offline data.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -125,7 +138,8 @@ class _DiscussionTabState extends State<DiscussionTab> {
                 final user = newMessage['users'] ?? {};
                 final message = _Msg(
                   newMessage['message'] ?? '',
-                  newMessage['user_id'] == SupabaseService.currentUser?.id,
+                  newMessage['user_id'] ==
+                      SupabaseService.client.auth.currentUser?.id,
                   DateTime.parse(newMessage['created_at'] ??
                       DateTime.now().toIso8601String()),
                   user['name'] ?? 'Unknown',
@@ -149,7 +163,14 @@ class _DiscussionTabState extends State<DiscussionTab> {
             }
           },
         )
-        .subscribe();
+        .subscribe((status, error) {
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        print('✅ Discussion realtime subscribed successfully');
+      }
+      if (error != null) {
+        print('❌ Discussion realtime error: $error');
+      }
+    });
   }
 
   void _showNewMessageNotification(String sender, String message) {
@@ -172,7 +193,8 @@ class _DiscussionTabState extends State<DiscussionTab> {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    final currentUser = SupabaseService.currentUser;
+    final authProvider = context.read<AuthProvider>();
+    final currentUser = SupabaseService.client.auth.currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Please login to send messages')),
@@ -189,10 +211,23 @@ class _DiscussionTabState extends State<DiscussionTab> {
       });
 
       _controller.clear();
+
+      // Show success feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Message sent successfully!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
     } catch (e) {
       print('Error sending message: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send message')),
+        SnackBar(
+          content: Text('Failed to send message. Please try again.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
       );
     }
   }
@@ -330,7 +365,8 @@ class _DiscussionTabState extends State<DiscussionTab> {
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(
-                                  color: scheme.onSurface.withValues(alpha: 0.6),
+                                  color:
+                                      scheme.onSurface.withValues(alpha: 0.6),
                                 ),
                           ),
                         ],
@@ -376,13 +412,13 @@ class _DiscussionTabState extends State<DiscussionTab> {
                       hintText: 'Type a message...',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide:
-                            BorderSide(color: scheme.outline.withValues(alpha: 0.3)),
+                        borderSide: BorderSide(
+                            color: scheme.outline.withValues(alpha: 0.3)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide:
-                            BorderSide(color: scheme.outline.withValues(alpha: 0.3)),
+                        borderSide: BorderSide(
+                            color: scheme.outline.withValues(alpha: 0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),

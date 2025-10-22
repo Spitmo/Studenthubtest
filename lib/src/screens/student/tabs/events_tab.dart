@@ -44,7 +44,14 @@ class _EventsTabState extends State<EventsTab> {
             }
           },
         )
-        .subscribe();
+        .subscribe((status, error) {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            print('✅ EventsTab realtime subscribed successfully');
+          }
+          if (error != null) {
+            print('❌ EventsTab realtime error: $error');
+          }
+        });
   }
 
   void _showNewEventNotification(String eventTitle) {
@@ -104,7 +111,7 @@ class _EventsTabState extends State<EventsTab> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Failed to load events: ${e.toString()}';
+          _error = 'Unable to load events. Please try again later.';
           _isLoading = false;
           // Fallback demo data
           _events = [

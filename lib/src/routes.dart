@@ -43,13 +43,15 @@ class Routes {
         return _fade(const AdminDashboardScreen());
       default:
         return MaterialPageRoute(
-            builder: (_) => const Scaffold(body: Center(child: Text('Not found'))));
+            builder: (_) =>
+                const Scaffold(body: Center(child: Text('Not found'))));
     }
   }
 
   static PageRoute _fade(Widget child) => PageRouteBuilder(
         pageBuilder: (_, __, ___) => _AuthGate(child: child),
-        transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
       );
 }
 
@@ -64,24 +66,43 @@ class _InitialRouteDeciderState extends State<_InitialRouteDecider> {
   bool _initialized = false;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void initState() {
+    super.initState();
+    _initializeAuth();
+  }
+
+  Future<void> _initializeAuth() async {
     if (!_initialized) {
       _initialized = true;
-      // Initialize auth on app start to restore session
-      final auth = context.read<AuthProvider>();
-      auth.initialize();
+      // AuthProvider auto-initializes in constructor, no need to call initialize()
+      await Future.delayed(const Duration(
+          milliseconds: 500)); // Small delay for smooth transition
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+
+    // Show loading until auth is initialized
     if (!auth.isInitialized) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading StudentHub...'),
+            ],
+          ),
+        ),
       );
     }
+
     return Routes.getInitialScreen(auth);
   }
 }
@@ -93,11 +114,15 @@ class _AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    
-    // Allow access to login, registration, and initial-decider screens
-    if (child is LoginScreen || child is RegistrationScreen || child is _InitialRouteDecider) return child;
-    
-    // Check if user is logged in
+
+    // Allow access to login, registration, and initial-decider screens without auth check
+    if (child is LoginScreen ||
+        child is RegistrationScreen ||
+        child is _InitialRouteDecider) {
+      return child;
+    }
+
+    // Check if user is logged in for other screens
     if (!auth.isLoggedIn || auth.currentUser == null) {
       return const LoginScreen();
     }
@@ -106,12 +131,12 @@ class _AuthGate extends StatelessWidget {
     if (child is StudentShell && auth.currentUser!.role != UserRole.student) {
       return const LoginScreen();
     }
-    if (child is AdminDashboardScreen && auth.currentUser!.role != UserRole.admin) {
+
+    if (child is AdminDashboardScreen &&
+        auth.currentUser!.role != UserRole.admin) {
       return const LoginScreen();
     }
-    
+
     return child;
   }
 }
-
-

@@ -52,6 +52,13 @@ class AuthException extends AppException {
     );
   }
 
+  factory AuthException.registrationFailed() {
+    return AuthException(
+      'Registration failed',
+      details: 'Could not create your account. Please try again',
+    );
+  }
+
   factory AuthException.userNotFound() {
     return AuthException(
       'User not found',
@@ -196,8 +203,8 @@ AppException handleError(dynamic error, {String? context}) {
   // Handle common error types
   final errorString = error.toString().toLowerCase();
 
-  if (errorString.contains('network') || 
-      errorString.contains('socket') || 
+  if (errorString.contains('network') ||
+      errorString.contains('socket') ||
       errorString.contains('connection')) {
     return NetworkException.noConnection();
   }

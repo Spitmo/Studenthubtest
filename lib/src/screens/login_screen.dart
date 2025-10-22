@@ -16,7 +16,6 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _rollController = TextEditingController();
   final _codeController = TextEditingController();
   late final AnimationController _animController;
   late final Animation<double> _fade;
@@ -33,7 +32,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   void dispose() {
     _animController.dispose();
-    _rollController.dispose();
     _codeController.dispose();
     super.dispose();
   }
@@ -43,7 +41,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     setState(() => _error = null);
     final auth = context.read<AuthProvider>();
     try {
-      await auth.login(name: _rollController.text.trim(), accessCode: _codeController.text.trim());
+      await auth.login(accessCode: _codeController.text.trim());
       if (auth.role == UserRole.student) {
         if (!mounted) return;
         Navigator.of(context).pushReplacementNamed(Routes.student);
@@ -105,19 +103,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  Text('Login with your Name and Access Code',
+                                  Text('Login with your Access Code',
                                       textAlign: TextAlign.center,
                                       style: theme.textTheme.bodyMedium),
                                   const SizedBox(height: 24),
-                                  TextFormField(
-                                    controller: _rollController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Full Name',
-                                      prefixIcon: Icon(Icons.person_outline_rounded),
-                                    ),
-                                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-                                  ),
-                                  const SizedBox(height: 12),
                                   TextFormField(
                                     controller: _codeController,
                                     obscureText: true,

@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
-import '../exceptions/app_exceptions.dart';
-import '../../services/supabase_service.dart';
+import '../exceptions/app_exceptions.dart' as app_exceptions;
+import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -11,6 +11,10 @@ class AuthProvider extends ChangeNotifier {
   String? _errorMessage;
   bool _isInitialized = false;
   bool _isSubscribedToNotifications = false;
+
+  AuthProvider() {
+    _initializeAuth();
+  }
 
   // Getters
   UserModel? get currentUser => _currentUser;
@@ -21,119 +25,142 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isInitialized => _isInitialized;
 
-  // For backward compatibility with existing code
+  // For backward compatibility
   String? get userId => _currentUser?.id;
   String? get userName => _currentUser?.name;
   String? get userEmail => _currentUser?.email;
 
-  // Initialize and check for existing session
-  Future<void> initialize() async {
-    if (_isInitialized) return;
-    
-    _setLoading(true);
+  // Initialize auth
+  Future<void> _initializeAuth() async {
     try {
       final session = await SupabaseService.getUserSession();
       final userId = session['user_id'];
-      final userRole = session['user_role'];
-      final rollNumber = session['roll_number'];
-      final userName = session['user_name'];
-      final userEmail = session['user_email'];
 
-      if (userId != null && userRole != null && rollNumber != null) {
-        // Restore session from local storage
-        try {
-          final role = UserRole.values.firstWhere(
-            (r) => r.name == userRole,
-            orElse: () => UserRole.student,
-          );
-          
-          _currentUser = UserModel(
-            id: userId,
-            name: userName ?? (role == UserRole.admin ? 'Admin User' : 'Student User'),
-            rollNumber: rollNumber,
-            email: userEmail ?? '$rollNumber@studenthub.com',
-            role: role,
-            isApproved: true,
-            createdAt: DateTime.now(),
-          );
-          
-          await _subscribeToNotifications();
-        } catch (e) {
-          // Clear invalid session
-          await SupabaseService.clearUserSession();
-          if (kDebugMode) {
-            print('Failed to restore session: $e');
-          }
-        }
+      if (userId != null) {
+        await _loadUserProfile(userId);
       }
       _isInitialized = true;
+      notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to initialize auth: $e';
       _isInitialized = true;
+      notifyListeners();
+    }
+  }
+
+  // Load user profile from database
+  Future<void> _loadUserProfile(String userId) async {
+    try {
+      _setLoading(true);
+      final userData = await SupabaseService.getUserById(userId);
+
+      if (userData != null) {
+        _currentUser = UserModel(
+          id: userId,
+          name: userData['name'],
+          rollNumber: userData['roll_number'],
+          email: '', // Email not needed
+          role: _parseUserRole(userData['role']),
+          isApproved: true,
+          createdAt: DateTime.now(),
+        );
+
+        await _subscribeToNotifications();
+        notifyListeners();
+      }
+    } catch (e) {
+      _errorMessage = 'Failed to load user profile: $e';
     } finally {
       _setLoading(false);
     }
   }
 
-  // Login with credentials (keeping existing system)
-  Future<void> login({required String name, required String accessCode}) async {
+  // Parse user role from string
+  UserRole _parseUserRole(String? roleString) {
+    if (roleString == null) return UserRole.student;
+    switch (roleString.toLowerCase()) {
+      case 'admin':
+        return UserRole.admin;
+      case 'moderator':
+        return UserRole.moderator;
+      default:
+        return UserRole.student;
+    }
+  }
+
+  // PURE ACCESS CODE BASED LOGIN
+  Future<void> login({required String accessCode}) async {
     _setLoading(true);
     _clearError();
 
     try {
-      // Validate inputs
-      if (name.trim().isEmpty) {
-        throw ValidationException.emptyField('Name');
-      }
       if (accessCode.trim().isEmpty) {
-        throw ValidationException.emptyField('Access Code');
+        throw app_exceptions.ValidationException.emptyField('Access Code');
       }
 
-      // Determine role based on access code
-      UserRole role;
-      if (accessCode == 'student123') {
-        role = UserRole.student;
-      } else if (accessCode == 'admin123') {
-        role = UserRole.admin;
-      } else {
-        throw AuthException.invalidCredentials();
+      // Direct access code check
+      final userData = await SupabaseService.getUserByAccessCode(accessCode);
+
+      if (userData == null) {
+        throw app_exceptions.AuthException.invalidCredentials();
       }
 
-      // Create a mock user for the hardcoded system
+      // Create user without email
       _currentUser = UserModel(
-        id: 'mock_${name.replaceAll(' ', '_').toLowerCase()}_${role.name}',
-        name: name.trim(),
-        rollNumber: name.trim(), // Use name as identifier
-        email: '${name.trim().replaceAll(' ', '.').toLowerCase()}@studenthub.com',
-        role: role,
+        id: userData['id'],
+        name: userData['name'],
+        rollNumber: userData['roll_number'],
+        email: '', // No email needed
+        role: _parseUserRole(userData['role']),
         isApproved: true,
         createdAt: DateTime.now(),
       );
 
       // Save session
-      try {
-        await SupabaseService.saveUserSession(
-          _currentUser!.id,
-          _currentUser!.role,
-          _currentUser!.rollNumber,
-          userName: _currentUser!.name,
-          userEmail: _currentUser!.email,
-        );
-      } catch (e) {
-        throw DatabaseException.insertFailed();
-      }
+      await SupabaseService.saveUserSession(
+        _currentUser!.id,
+        _currentUser!.role.name,
+        _currentUser!.rollNumber,
+        userName: _currentUser!.name,
+      );
 
-      // Subscribe to notifications
       await _subscribeToNotifications();
+      notifyListeners();
 
-    } on AppException {
-      // Re-throw AppExceptions as-is
-      _setLoading(false);
-      rethrow;
+      print('✅ Login successful: ${_currentUser!.name}');
     } catch (e) {
+      _errorMessage = 'Login failed: $e';
+      throw app_exceptions.AuthException.invalidCredentials();
+    } finally {
       _setLoading(false);
-      _errorMessage = e.toString();
-      throw handleError(e, context: 'Login failed');
+    }
+  }
+
+  // SIMPLE REGISTRATION (if needed)
+  Future<void> register({
+    required String name,
+    required String rollNumber,
+    required String accessCode,
+  }) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final userId = DateTime.now().millisecondsSinceEpoch.toString();
+
+      await SupabaseService.createUser(
+        id: userId,
+        name: name,
+        rollNumber: rollNumber,
+        email: '', // No email
+        role: 'student',
+        accessCode: accessCode,
+      );
+
+      await login(accessCode: accessCode);
+    } catch (e) {
+      _errorMessage = 'Registration failed: $e';
+      throw app_exceptions.AuthException.registrationFailed();
     } finally {
       _setLoading(false);
     }
@@ -141,82 +168,26 @@ class AuthProvider extends ChangeNotifier {
 
   // Logout
   Future<void> logout() async {
-    if (kDebugMode) {
-      print('Logout called for user: ${_currentUser?.id}');
-    }
     _setLoading(true);
     try {
-      // Kick off unsubscription in background with timeout so UI isn't blocked
-      unawaited(
-        _unsubscribeFromNotifications()
-            .timeout(const Duration(seconds: 3), onTimeout: () {})
-            .catchError((_) {}),
-      );
-
-      // Clear session quickly, then update local state so UI can navigate immediately
-      await SupabaseService.clearUserSession();
-
       _currentUser = null;
-      _isSubscribedToNotifications = false;
+      await _unsubscribeFromNotifications();
+      await SupabaseService.clearUserSession();
+      notifyListeners();
     } catch (e) {
-      _errorMessage = 'Failed to logout: $e';
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // Update user profile
-  Future<void> updateProfile({
-    String? name,
-    String? email,
-    String? avatarUrl,
-  }) async {
-    if (_currentUser == null) return;
-
-    _setLoading(true);
-    try {
-      final updates = <String, dynamic>{};
-      if (name != null) updates['name'] = name;
-      if (email != null) updates['email'] = email;
-      if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
-
-      if (updates.isNotEmpty) {
-        await SupabaseService.updateUserProfile(_currentUser!.id, updates);
-        _currentUser = _currentUser!.copyWith(
-          name: name ?? _currentUser!.name,
-          email: email ?? _currentUser!.email,
-          avatarUrl: avatarUrl ?? _currentUser!.avatarUrl,
-        );
-      }
-    } catch (e) {
-      _errorMessage = 'Failed to update profile: $e';
+      _errorMessage = 'Logout failed: $e';
       rethrow;
     } finally {
       _setLoading(false);
     }
   }
 
-  // Subscribe to notifications based on role
+  // Subscribe to notifications
   Future<void> _subscribeToNotifications() async {
-    if (_currentUser == null || _isSubscribedToNotifications) {
-      if (kDebugMode) {
-        print('Skipping notification subscription: user=${_currentUser?.id}, already subscribed=$_isSubscribedToNotifications');
-      }
-      return;
-    }
-
-    // Set flag IMMEDIATELY to prevent concurrent calls
+    if (_currentUser == null || _isSubscribedToNotifications) return;
     _isSubscribedToNotifications = true;
-
-    if (kDebugMode) {
-      print('Starting notification subscription for user: ${_currentUser!.id}');
-    }
-
     try {
-      // Subscribe to general notifications
       await NotificationService.subscribeToTopic('all_users');
-
-      // Subscribe to role-specific notifications
       switch (_currentUser!.role) {
         case UserRole.student:
           await NotificationService.subscribeToTopic('students');
@@ -228,44 +199,25 @@ class AuthProvider extends ChangeNotifier {
           await NotificationService.subscribeToTopic('moderators');
           break;
       }
-      if (kDebugMode) {
-        print('Completed notification subscription for user: ${_currentUser!.id}');
-      }
     } catch (e) {
-      // Reset flag on error so it can be retried
       _isSubscribedToNotifications = false;
-      if (kDebugMode) {
-        print('Failed to subscribe to notifications: $e');
-      }
     }
   }
 
   // Unsubscribe from notifications
   Future<void> _unsubscribeFromNotifications() async {
-    if (_currentUser == null || !_isSubscribedToNotifications) return;
-
+    if (!_isSubscribedToNotifications) return;
     try {
       await Future.wait([
-        NotificationService
-            .unsubscribeFromTopic('all_users')
-            .timeout(const Duration(seconds: 2), onTimeout: () {}),
-        NotificationService
-            .unsubscribeFromTopic('students')
-            .timeout(const Duration(seconds: 2), onTimeout: () {}),
-        NotificationService
-            .unsubscribeFromTopic('admins')
-            .timeout(const Duration(seconds: 2), onTimeout: () {}),
-        NotificationService
-            .unsubscribeFromTopic('moderators')
-            .timeout(const Duration(seconds: 2), onTimeout: () {}),
+        NotificationService.unsubscribeFromTopic('all_users'),
+        NotificationService.unsubscribeFromTopic('students'),
+        NotificationService.unsubscribeFromTopic('admins'),
+        NotificationService.unsubscribeFromTopic('moderators'),
       ], eagerError: false);
-      if (kDebugMode) {
-        print('Unsubscribed from all notification topics');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('Failed to unsubscribe from notifications: $e');
-      }
+      // Ignore errors
+    } finally {
+      _isSubscribedToNotifications = false;
     }
   }
 
@@ -277,25 +229,24 @@ class AuthProvider extends ChangeNotifier {
 
   void _clearError() {
     _errorMessage = null;
+  }
+
+  void clearError() {
+    _clearError();
     notifyListeners();
   }
 
-  // Clear error manually
-  void clearError() {
-    _clearError();
-  }
-
-  // Check if user has specific permission
+  // Check permissions
   bool hasPermission(String permission) {
     if (_currentUser == null) return false;
-
     switch (permission) {
       case 'manage_users':
       case 'manage_events':
       case 'approve_files':
         return _currentUser!.role == UserRole.admin;
       case 'moderate_discussion':
-        return _currentUser!.role == UserRole.admin || _currentUser!.role == UserRole.moderator;
+        return _currentUser!.role == UserRole.admin ||
+            _currentUser!.role == UserRole.moderator;
       case 'upload_files':
       case 'join_discussion':
       case 'view_events':
@@ -304,6 +255,9 @@ class AuthProvider extends ChangeNotifier {
         return false;
     }
   }
+
+  // For routes.dart
+  Future<void> initialize() async {
+    await _initializeAuth();
+  }
 }
-
-

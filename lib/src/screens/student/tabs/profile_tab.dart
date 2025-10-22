@@ -10,7 +10,7 @@ class ProfileTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final scheme = Theme.of(context).colorScheme;
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -19,18 +19,18 @@ class ProfileTab extends StatelessWidget {
           Text(
             'Profile',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 8),
           Text(
             'Manage your account and preferences',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: scheme.onSurface.withOpacity(0.6),
-            ),
+                  color: scheme.onSurface.withOpacity(0.6),
+                ),
           ),
           const SizedBox(height: 24),
-          
+
           // Profile Card
           Card(
             elevation: 2,
@@ -51,19 +51,20 @@ class ProfileTab extends StatelessWidget {
                   Text(
                     'Student',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Roll Number: ${auth.rollNumber ?? 'N/A'}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurface.withOpacity(0.7),
-                    ),
+                          color: scheme.onSurface.withOpacity(0.7),
+                        ),
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: scheme.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
@@ -81,15 +82,15 @@ class ProfileTab extends StatelessWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Quick Stats
           Text(
             'Quick Stats',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+                  fontWeight: FontWeight.w600,
+                ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -115,15 +116,15 @@ class ProfileTab extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Settings Section
           Text(
             'Settings',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+                  fontWeight: FontWeight.w600,
+                ),
           ),
           const SizedBox(height: 12),
           Card(
@@ -175,7 +176,8 @@ class ProfileTab extends StatelessWidget {
                       context: context,
                       builder: (context) => AlertDialog(
                         title: const Text('About StudentHub'),
-                        content: const Text('Version 1.0.0\nA Flutter app for students and admins with role-based dashboards.'),
+                        content: const Text(
+                            'Version 1.0.0\nA Flutter app for students and admins with role-based dashboards.'),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
@@ -189,9 +191,9 @@ class ProfileTab extends StatelessWidget {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Logout Button
           SizedBox(
             width: double.infinity,
@@ -239,7 +241,8 @@ class ProfileTab extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(BuildContext context, String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(BuildContext context, String title, String value,
+      IconData icon, Color color) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -250,16 +253,19 @@ class ProfileTab extends StatelessWidget {
             Text(
               value,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
             ),
             const SizedBox(height: 4),
             Text(
               title,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.6),
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -268,14 +274,15 @@ class ProfileTab extends StatelessWidget {
     );
   }
 
-  Widget _buildSettingsItem(BuildContext context, {
+  Widget _buildSettingsItem(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    
+
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: scheme.primary.withOpacity(0.1),
@@ -292,5 +299,3 @@ class ProfileTab extends StatelessWidget {
     );
   }
 }
-
-

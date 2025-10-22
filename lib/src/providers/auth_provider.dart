@@ -3,6 +3,7 @@ import '../models/user_model.dart';
 import '../exceptions/app_exceptions.dart';
 import '../../services/supabase_service.dart';
 import '../services/notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthProvider extends ChangeNotifier {
   UserModel? _currentUser;
@@ -28,43 +29,40 @@ class AuthProvider extends ChangeNotifier {
   // Initialize and check for existing session
   Future<void> initialize() async {
     if (_isInitialized) return;
-    
+
     _setLoading(true);
     try {
-      final session = await SupabaseService.getUserSession();
-      final userId = session['user_id'];
-      final userRole = session['user_role'];
-      final rollNumber = session['roll_number'];
-      final userName = session['user_name'];
-      final userEmail = session['user_email'];
+      // Check if Supabase has current user (using Supabase auth)
+      final currentUser = SupabaseService.currentUser;
 
-      if (userId != null && userRole != null && rollNumber != null) {
-        // Restore session from local storage
+      if (currentUser != null) {
+        // Try to get user profile from Supabase
         try {
-          final role = UserRole.values.firstWhere(
-            (r) => r.name == userRole,
-            orElse: () => UserRole.student,
-          );
-          
-          _currentUser = UserModel(
-            id: userId,
-            name: userName ?? (role == UserRole.admin ? 'Admin User' : 'Student User'),
-            rollNumber: rollNumber,
-            email: userEmail ?? '$rollNumber@studenthub.com',
-            role: role,
-            isApproved: true,
-            createdAt: DateTime.now(),
-          );
-          
-          await _subscribeToNotifications();
+          final userProfile =
+              await SupabaseService.getUserProfile(currentUser.id);
+
+          if (userProfile != null) {
+            // Create UserModel from Supabase data
+            _currentUser = UserModel(
+              id: currentUser.id,
+              name: userProfile['name'] ?? 'User',
+              rollNumber: userProfile['roll_number'] ?? 'Unknown',
+              email: currentUser.email ??
+                  '${userProfile['roll_number']}@studenthub.com',
+              role: _getRoleFromString(userProfile['role'] ?? 'student'),
+              isApproved: userProfile['is_approved'] ?? true,
+              createdAt: DateTime.now(),
+            );
+
+            await _subscribeToNotifications();
+          }
         } catch (e) {
-          // Clear invalid session
-          await SupabaseService.clearUserSession();
           if (kDebugMode) {
-            print('Failed to restore session: $e');
+            print('Failed to fetch user profile: $e');
           }
         }
       }
+
       _isInitialized = true;
     } catch (e) {
       _errorMessage = 'Failed to initialize auth: $e';
@@ -75,7 +73,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Login with credentials (keeping existing system)
-  Future<void> login({required String rollNumber, required String accessCode}) async {
+  Future<void> login(
+      {required String rollNumber, required String accessCode}) async {
     _setLoading(true);
     _clearError();
 
@@ -109,20 +108,11 @@ class AuthProvider extends ChangeNotifier {
         createdAt: DateTime.now(),
       );
 
-      // Save session
-      try {
-        await SupabaseService.saveUserSession(
-          _currentUser!.id,
-          _currentUser!.role,
-          _currentUser!.rollNumber,
-        );
-      } catch (e) {
-        throw DatabaseException.insertFailed();
-      }
+      // Save session using SharedPreferences (simple approach)
+      await _saveUserSessionToPrefs();
 
       // Subscribe to notifications
       await _subscribeToNotifications();
-
     } on AppException {
       // Re-throw AppExceptions as-is
       _setLoading(false);
@@ -146,8 +136,17 @@ class AuthProvider extends ChangeNotifier {
       // Unsubscribe from notifications
       await _unsubscribeFromNotifications();
 
-      // Clear session
-      await SupabaseService.clearUserSession();
+      // Clear session from preferences
+      await _clearUserSessionFromPrefs();
+
+      // Also sign out from Supabase if needed
+      try {
+        await SupabaseService.signOut();
+      } catch (e) {
+        if (kDebugMode) {
+          print('Supabase signout error: $e');
+        }
+      }
 
       _currentUser = null;
       _isSubscribedToNotifications = false;
@@ -174,12 +173,17 @@ class AuthProvider extends ChangeNotifier {
       if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
 
       if (updates.isNotEmpty) {
+        // Update in Supabase
         await SupabaseService.updateUserProfile(_currentUser!.id, updates);
+
+        // Update local user model
         _currentUser = _currentUser!.copyWith(
           name: name ?? _currentUser!.name,
           email: email ?? _currentUser!.email,
           avatarUrl: avatarUrl ?? _currentUser!.avatarUrl,
         );
+
+        notifyListeners();
       }
     } catch (e) {
       _errorMessage = 'Failed to update profile: $e';
@@ -189,11 +193,56 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // ============ SESSION MANAGEMENT USING SHARED_PREFERENCES ============
+
+  Future<void> _saveUserSessionToPrefs() async {
+    // Using SharedPreferences for simple session storage
+    // You can replace this with more secure storage if needed
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_id', _currentUser!.id);
+    await prefs.setString('user_role', _currentUser!.role.name);
+    await prefs.setString('roll_number', _currentUser!.rollNumber);
+    await prefs.setString('user_name', _currentUser!.name);
+  }
+
+  Future<void> _clearUserSessionFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user_id');
+    await prefs.remove('user_role');
+    await prefs.remove('roll_number');
+    await prefs.remove('user_name');
+  }
+
+  Future<Map<String, String>> _getUserSessionFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'user_id': prefs.getString('user_id') ?? '',
+      'user_role': prefs.getString('user_role') ?? '',
+      'roll_number': prefs.getString('roll_number') ?? '',
+      'user_name': prefs.getString('user_name') ?? '',
+    };
+  }
+
+  // ============ HELPER METHODS ============
+
+  UserRole _getRoleFromString(String roleStr) {
+    switch (roleStr.toLowerCase()) {
+      case 'admin':
+        return UserRole.admin;
+      case 'moderator':
+        return UserRole.moderator;
+      case 'student':
+      default:
+        return UserRole.student;
+    }
+  }
+
   // Subscribe to notifications based on role
   Future<void> _subscribeToNotifications() async {
     if (_currentUser == null || _isSubscribedToNotifications) {
       if (kDebugMode) {
-        print('Skipping notification subscription: user=${_currentUser?.id}, already subscribed=$_isSubscribedToNotifications');
+        print(
+            'Skipping notification subscription: user=${_currentUser?.id}, already subscribed=$_isSubscribedToNotifications');
       }
       return;
     }
@@ -222,7 +271,8 @@ class AuthProvider extends ChangeNotifier {
           break;
       }
       if (kDebugMode) {
-        print('Completed notification subscription for user: ${_currentUser!.id}');
+        print(
+            'Completed notification subscription for user: ${_currentUser!.id}');
       }
     } catch (e) {
       // Reset flag on error so it can be retried
@@ -252,7 +302,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Helper methods
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
@@ -278,7 +327,8 @@ class AuthProvider extends ChangeNotifier {
       case 'approve_files':
         return _currentUser!.role == UserRole.admin;
       case 'moderate_discussion':
-        return _currentUser!.role == UserRole.admin || _currentUser!.role == UserRole.moderator;
+        return _currentUser!.role == UserRole.admin ||
+            _currentUser!.role == UserRole.moderator;
       case 'upload_files':
       case 'join_discussion':
       case 'view_events':
@@ -288,5 +338,3 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 }
-
-

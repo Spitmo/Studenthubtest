@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'services/supabase_service.dart';
 import 'src/app_theme.dart';
 import 'src/providers/auth_provider.dart';
 import 'src/providers/theme_provider.dart';
 import 'src/routes.dart';
+import 'firebase_options.dart';
+import 'src/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Initialize Firebase for FCM (fixes: [core/no-app])
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  // Initialize local and push notifications
+  await NotificationService.initialize();
+  // Initialize Supabase
   await SupabaseService.initialize();
   runApp(const StudentHubApp());
 }

@@ -208,7 +208,7 @@ class _StudentShellState extends State<StudentShell> {
                       ),
                     ),
                     Text(
-                      'Roll: ${auth.rollNumber ?? 'N/A'}',
+                      'Name: ${auth.userName ?? 'N/A'}',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.8),
                         fontSize: 14,
@@ -425,7 +425,7 @@ class _StudentShellState extends State<StudentShell> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Welcome back!',
+                      'Welcome, ${auth.userName?.split(' ').first ?? 'Student'}',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 20, // REDUCED FONT SIZE
@@ -434,7 +434,7 @@ class _StudentShellState extends State<StudentShell> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Roll: ${auth.rollNumber ?? 'N/A'}',
+                      'Name: ${auth.userName ?? 'N/A'}',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.9),
                         fontSize: 14, // REDUCED FONT SIZE

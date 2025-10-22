@@ -62,7 +62,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> with SingleTick
       
       // For demo purposes, directly login with the provided credentials
       auth.login(
-        rollNumber: _rollController.text.trim(),
+        name: _nameController.text.trim(),
         accessCode: accessCode,
       );
 

@@ -49,14 +49,14 @@ class ProfileTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Student',
+                    auth.userName ?? 'Student',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Roll Number: ${auth.rollNumber ?? 'N/A'}',
+                    'Name: ${auth.userName ?? 'N/A'}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: scheme.onSurface.withOpacity(0.7),
                         ),

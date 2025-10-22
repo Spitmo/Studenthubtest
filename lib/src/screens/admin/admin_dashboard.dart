@@ -167,7 +167,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                 ),
                 Text(
-                  'Roll: ${auth.rollNumber ?? 'N/A'}',
+                  'Name: ${auth.userName ?? 'N/A'}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: scheme.surface.withOpacity(0.8),
                   ),

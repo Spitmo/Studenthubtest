@@ -75,14 +75,14 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Login with credentials (keeping existing system)
-  Future<void> login({required String rollNumber, required String accessCode}) async {
+  Future<void> login({required String name, required String accessCode}) async {
     _setLoading(true);
     _clearError();
 
     try {
       // Validate inputs
-      if (rollNumber.trim().isEmpty) {
-        throw ValidationException.emptyField('Roll Number');
+      if (name.trim().isEmpty) {
+        throw ValidationException.emptyField('Name');
       }
       if (accessCode.trim().isEmpty) {
         throw ValidationException.emptyField('Access Code');
@@ -100,10 +100,10 @@ class AuthProvider extends ChangeNotifier {
 
       // Create a mock user for the hardcoded system
       _currentUser = UserModel(
-        id: 'mock_${rollNumber}_${role.name}',
-        name: role == UserRole.admin ? 'Admin User' : 'Student User',
-        rollNumber: rollNumber,
-        email: '${rollNumber}@studenthub.com',
+        id: 'mock_${name.replaceAll(' ', '_').toLowerCase()}_${role.name}',
+        name: name.trim(),
+        rollNumber: name.trim(), // Use name as identifier
+        email: '${name.trim().replaceAll(' ', '.').toLowerCase()}@studenthub.com',
         role: role,
         isApproved: true,
         createdAt: DateTime.now(),

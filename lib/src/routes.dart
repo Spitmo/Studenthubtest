@@ -31,6 +31,8 @@ class Routes {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
       case initial:
+        // Decide initial screen after restoring session
+        return _fade(const _InitialRouteDecider());
       case login:
         return _fade(const LoginScreen());
       case register:
@@ -51,6 +53,39 @@ class Routes {
       );
 }
 
+class _InitialRouteDecider extends StatefulWidget {
+  const _InitialRouteDecider();
+
+  @override
+  State<_InitialRouteDecider> createState() => _InitialRouteDeciderState();
+}
+
+class _InitialRouteDeciderState extends State<_InitialRouteDecider> {
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
+      // Initialize auth on app start to restore session
+      final auth = context.read<AuthProvider>();
+      auth.initialize();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    if (!auth.isInitialized) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Routes.getInitialScreen(auth);
+  }
+}
+
 class _AuthGate extends StatelessWidget {
   final Widget child;
   const _AuthGate({required this.child});
@@ -59,8 +94,8 @@ class _AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     
-    // Allow access to login and registration screens
-    if (child is LoginScreen || child is RegistrationScreen) return child;
+    // Allow access to login, registration, and initial-decider screens
+    if (child is LoginScreen || child is RegistrationScreen || child is _InitialRouteDecider) return child;
     
     // Check if user is logged in
     if (!auth.isLoggedIn || auth.currentUser == null) {

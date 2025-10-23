@@ -246,10 +246,9 @@ class SupabaseService {
 
   static Future<List<Map<String, dynamic>>> getEvents() async {
     try {
-      final response = await client
-          .from('events')
-          .select()
-          .order('event_date', ascending: true);
+      final response = await client.from('events').select().order('created_at',
+          ascending:
+              false); // FIXED: Changed from event_date to created_at and set to descending
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       return [];

@@ -17,7 +17,6 @@ class NotesTab extends StatefulWidget {
 class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
   List<_UploadItem> _uploads = [];
   final _remarkCtrl = TextEditingController();
-  late TabController _tabController;
 
   // 🎯 NEW: File selection
   PlatformFile? _selectedFile;
@@ -40,14 +39,12 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _categories.length, vsync: this);
     _loadUploads();
   }
 
   @override
   void dispose() {
     _remarkCtrl.dispose();
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -238,6 +235,20 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
         .toList();
   }
 
+  // 🎯 NEW: Category icon helper
+  Icon _getCategoryIcon(String category) {
+    switch (category) {
+      case 'Regular':
+        return const Icon(Icons.note_rounded, size: 18);
+      case 'Assignment':
+        return const Icon(Icons.assignment_rounded, size: 18);
+      case 'Practical':
+        return const Icon(Icons.science_rounded, size: 18);
+      default:
+        return const Icon(Icons.folder_rounded, size: 18);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -396,37 +407,43 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
             ),
           ),
 
-          // Rest of the code remains same...
+          // 🎯 UPDATED: Material 3 Segmented Button Tabs
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: scheme.outline.withOpacity(0.2)),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              tabs: _categories.map((category) => Tab(text: category)).toList(),
-              indicator: BoxDecoration(
-                color: scheme.primary,
-                borderRadius: BorderRadius.circular(8),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<String>(
+                segments: _categories.map((category) {
+                  return ButtonSegment<String>(
+                    value: category,
+                    label: Text(category),
+                    icon: _getCategoryIcon(category),
+                  );
+                }).toList(),
+                selected: {_categories[_selectedCategoryIndex]},
+                onSelectionChanged: (Set<String> newSelection) {
+                  if (mounted) {
+                    setState(() {
+                      _selectedCategoryIndex =
+                          _categories.indexOf(newSelection.first);
+                    });
+                  }
+                },
+                style: SegmentedButton.styleFrom(
+                  backgroundColor: scheme.surface,
+                  foregroundColor: scheme.onSurface,
+                  selectedBackgroundColor: scheme.primary,
+                  selectedForegroundColor: scheme.onPrimary,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
               ),
-              labelColor: Colors.white,
-              unselectedLabelColor: scheme.onSurface.withOpacity(0.6),
-              labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-              onTap: (index) {
-                if (mounted) {
-                  setState(() {
-                    _selectedCategoryIndex = index;
-                  });
-                }
-              },
             ),
           ),
 
           const SizedBox(height: 16),
 
-          // Content Area (same as before)
+          // Content Area
           SizedBox(
             height: 400,
             child: _isLoading
@@ -461,7 +478,6 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
     );
   }
 
-  // Rest of the methods remain same (_buildUploadsList, _showFileDetails, etc.)
   Widget _buildUploadsList() {
     final filteredUploads = _getFilteredUploads();
     final scheme = Theme.of(context).colorScheme;

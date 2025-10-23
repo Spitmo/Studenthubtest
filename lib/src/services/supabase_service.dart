@@ -24,6 +24,83 @@ class SupabaseService {
     _initializeRealtimeChannels();
   }
 
+  // ==================== MISSING AUTH METHODS ADDED ====================
+
+  // Get user session from SharedPreferences
+  static Future<Map<String, dynamic>> getUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'user_id': prefs.getString('user_id'),
+      'user_role': prefs.getString('user_role'),
+      'roll_number': prefs.getString('roll_number'),
+      'user_name': prefs.getString('user_name'),
+    };
+  }
+
+  // Save user session to SharedPreferences
+  static Future<void> saveUserSession(
+    String userId,
+    String userRole,
+    String rollNumber, {
+    String? userName,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_id', userId);
+    await prefs.setString('user_role', userRole);
+    await prefs.setString('roll_number', rollNumber);
+    if (userName != null) {
+      await prefs.setString('user_name', userName);
+    }
+  }
+
+  // Clear user session
+  static Future<void> clearUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user_id');
+    await prefs.remove('user_role');
+    await prefs.remove('roll_number');
+    await prefs.remove('user_name');
+  }
+
+  // Get user by ID from Supabase - FIXED .execute() REMOVED
+  static Future<Map<String, dynamic>?> getUserById(String userId) async {
+    try {
+      final response =
+          await client.from('users').select().eq('id', userId).single();
+
+      return response;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Get users by access code from Supabase - FIXED .execute() REMOVED
+  static Future<List<Map<String, dynamic>>> getUsersByAccessCode(
+      String accessCode) async {
+    try {
+      final response =
+          await client.from('users').select().eq('access_code', accessCode);
+
+      return _toList(response);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // Get all users - FIXED .execute() REMOVED
+  static Future<List<Map<String, dynamic>>> getAllUsers() async {
+    try {
+      final response = await client
+          .from('users')
+          .select()
+          .order('created_at', ascending: false);
+
+      return _toList(response);
+    } catch (e) {
+      return [];
+    }
+  }
+
   // ==================== REALTIME IMPLEMENTATION ====================
 
   static void _initializeRealtimeChannels() {
@@ -164,11 +241,6 @@ class SupabaseService {
     if (response is List) {
       return List<Map<String, dynamic>>.from(response);
     }
-    // Some Supabase responses wrap data in `.data`
-    try {
-      final data = (response as dynamic).data;
-      if (data is List) return List<Map<String, dynamic>>.from(data);
-    } catch (_) {}
     return [];
   }
 
@@ -217,7 +289,6 @@ class SupabaseService {
     required String role,
   }) async {
     await client.from('users').insert({
-      // CHANGED: 'user_profiles' -> 'users'
       'id': userId,
       'name': name,
       'roll_number': rollNumber,
@@ -227,25 +298,14 @@ class SupabaseService {
   }
 
   static Future<Map<String, dynamic>?> getUserProfile(String userId) async {
-    final response = await client
-        .from('users') // CHANGED: 'user_profiles' -> 'users'
-        .select()
-        .eq('id', userId)
-        .maybeSingle();
-    if (response == null) return null;
-    try {
-      return Map<String, dynamic>.from(response as Map);
-    } catch (_) {
-      return null;
-    }
+    final response =
+        await client.from('users').select().eq('id', userId).maybeSingle();
+    return response;
   }
 
   static Future<void> updateUserProfile(
       String userId, Map<String, dynamic> updates) async {
-    await client
-        .from('users')
-        .update(updates)
-        .eq('id', userId); // CHANGED table name
+    await client.from('users').update(updates).eq('id', userId);
   }
 
   // Events Management - FIXED FIELD NAMES
@@ -257,7 +317,7 @@ class SupabaseService {
   }) async {
     await client.from('events').insert({
       'title': title,
-      'event_date': date.toIso8601String(), // CHANGED: 'date' -> 'event_date'
+      'event_date': date.toIso8601String(),
       'description': description,
       'created_by': createdBy,
       'created_at': DateTime.now().toIso8601String(),
@@ -265,8 +325,10 @@ class SupabaseService {
   }
 
   static Future<List<Map<String, dynamic>>> getEvents() async {
-    final response = await client.from('events').select().order('event_date',
-        ascending: true); // CHANGED: 'date' -> 'event_date'
+    final response = await client
+        .from('events')
+        .select()
+        .order('event_date', ascending: true);
     return _toList(response);
   }
 
@@ -281,9 +343,9 @@ class SupabaseService {
     required String uploadedBy,
   }) async {
     await client.from('uploads').insert({
-      'file_name': filename, // CHANGED: 'filename' -> 'file_name'
+      'file_name': filename,
       'remark': remark,
-      'student_id': uploadedBy, // CHANGED: 'uploaded_by' -> 'student_id'
+      'student_id': uploadedBy,
       'status': 'pending',
       'created_at': DateTime.now().toIso8601String(),
     });
@@ -312,10 +374,8 @@ class SupabaseService {
 
   // Analytics - FIXED TABLE NAMES
   static Future<Map<String, int>> getAnalytics() async {
-    final studentsResp = await client
-        .from('users') // CHANGED: 'user_profiles' -> 'users'
-        .select()
-        .eq('role', 'student');
+    final studentsResp =
+        await client.from('users').select().eq('role', 'student');
     final totalStudents = _toList(studentsResp).length;
 
     final pendingUploadsResp =
@@ -325,7 +385,7 @@ class SupabaseService {
     final eventsResp = await client.from('events').select();
     final totalEvents = _toList(eventsResp).length;
 
-    final usersResp = await client.from('users').select(); // CHANGED table name
+    final usersResp = await client.from('users').select();
     final totalUsers = _toList(usersResp).length;
 
     return {
@@ -350,7 +410,7 @@ class SupabaseService {
   // Connection Test
   static Future<bool> testConnection() async {
     try {
-      await client.from('users').select('id').limit(1); // CHANGED table name
+      await client.from('users').select('id').limit(1);
       return true;
     } catch (e) {
       return false;
@@ -360,12 +420,11 @@ class SupabaseService {
   // Get Student-specific uploads - FIXED FIELD NAME
   static Future<List<Map<String, dynamic>>> getStudentUploads(
       String studentId) async {
-    // CHANGED parameter name
     try {
       final response = await client
           .from('uploads')
           .select()
-          .eq('student_id', studentId) // CHANGED: 'uploaded_by' -> 'student_id'
+          .eq('student_id', studentId)
           .order('created_at', ascending: false);
       return _toList(response);
     } catch (e) {

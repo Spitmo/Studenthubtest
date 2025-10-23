@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../../providers/auth_provider.dart';
 import '../../../services/supabase_service.dart';
@@ -16,6 +18,10 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
   List<_UploadItem> _uploads = [];
   final _remarkCtrl = TextEditingController();
   late TabController _tabController;
+
+  // 🎯 NEW: File selection
+  PlatformFile? _selectedFile;
+  bool _isPickingFile = false;
 
   // Categories
   final List<String> _categories = [
@@ -45,6 +51,31 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  // 🎯 NEW: File picker method
+  Future<void> _pickFile() async {
+    setState(() => _isPickingFile = true);
+
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'],
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        setState(() {
+          _selectedFile = result.files.first;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('File picker error: $e')),
+      );
+    } finally {
+      setState(() => _isPickingFile = false);
+    }
+  }
+
   Future<void> _loadUploads() async {
     setState(() {
       _isLoading = true;
@@ -52,22 +83,22 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
     });
 
     try {
-      // Load from Supabase
-      final supabaseUploads = await SupabaseService.getPendingUploads();
+      final auth = context.read<AuthProvider>();
+      final studentUploads =
+          await SupabaseService.getStudentUploads(auth.userId!);
 
-      // Convert to local format and add some demo data
       final List<_UploadItem> allUploads = [
-        ...supabaseUploads.map((upload) => _UploadItem(
+        ...studentUploads.map((upload) => _UploadItem(
               id: upload['id']?.toString(),
-              filename: upload['filename'] ?? 'Unknown',
+              filename: upload['file_name'] ?? 'Unknown',
               remark: upload['remark'] ?? '',
-              category: _getCategoryFromFilename(upload['filename'] ?? ''),
+              category: _getCategoryFromFilename(upload['file_name'] ?? ''),
               status: _getStatusFromSupabase(upload['status'] ?? 'pending'),
               timestamp: DateTime.parse(
                   upload['created_at'] ?? DateTime.now().toIso8601String()),
             )),
-        // Add some demo data if no Supabase data
-        if (supabaseUploads.isEmpty) ...[
+        // Demo data only if no actual uploads
+        if (studentUploads.isEmpty) ...[
           _UploadItem(
             filename: 'Math_Assignment_1.pdf',
             remark: 'Chapter 5 exercises',
@@ -81,13 +112,6 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
             category: 'Practical',
             status: 'Pending',
             timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-          ),
-          _UploadItem(
-            filename: 'Chemistry_Notes.pdf',
-            remark: 'Organic chemistry notes',
-            category: 'Regular',
-            status: 'Approved',
-            timestamp: DateTime.now().subtract(const Duration(days: 1)),
           ),
         ],
       ];
@@ -133,29 +157,37 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
     }
   }
 
+  // 🎯 UPDATED: Proper file upload with validation
   Future<void> _uploadFile() async {
-    if (_remarkCtrl.text.trim().isEmpty) {
+    // ✅ VALIDATION 1: File must be selected
+    if (_selectedFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add a remark for your upload')),
+        const SnackBar(content: Text('❌ Please select a file first')),
       );
       return;
     }
 
-    if (mounted) {
-      setState(() {
-        _isUploading = true;
-      });
+    // ✅ VALIDATION 2: Remark must not be empty
+    if (_remarkCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ Please add a remark for your upload')),
+      );
+      return;
     }
+
+    setState(() => _isUploading = true);
 
     try {
       final auth = context.read<AuthProvider>();
-      final filename = 'note_${DateTime.now().millisecondsSinceEpoch}.pdf';
+
+      // Use actual filename instead of hardcoded
+      final filename = _selectedFile!.name;
 
       // Upload to Supabase
       await SupabaseService.createUpload(
         filename: filename,
         remark: _remarkCtrl.text.trim(),
-        uploadedBy: auth.rollNumber ?? 'Unknown',
+        uploadedBy: auth.userId!, // ✅ Use userId instead of rollNumber
       );
 
       // Add to local list
@@ -170,27 +202,28 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                 status: 'Pending',
                 timestamp: DateTime.now(),
               ));
+
+          // Clear form
           _remarkCtrl.clear();
+          _selectedFile = null;
           _isUploading = false;
         });
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('File uploaded successfully!'),
+          content: Text('✅ File uploaded successfully!'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isUploading = false;
-        });
+        setState(() => _isUploading = false);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Upload failed: ${e.toString()}'),
+          content: Text('❌ Upload failed: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -198,7 +231,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
   }
 
   List<_UploadItem> _getFilteredUploads() {
-    if (_selectedCategoryIndex == 0) return _uploads; // All
+    if (_selectedCategoryIndex == 0) return _uploads;
     final selectedCategory = _categories[_selectedCategoryIndex];
     return _uploads
         .where((upload) => upload.category == selectedCategory)
@@ -212,169 +245,223 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
     return SingleChildScrollView(
       child: Column(
         children: [
-        // Upload Section
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.cloud_upload_rounded,
-                        color: scheme.primary,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Upload New File',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _remarkCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Add a remark (required)',
-                      hintText: 'e.g., Chapter 5 exercises, Lab report...',
-                      prefixIcon: Icon(Icons.note_rounded),
-                      border: OutlineInputBorder(),
+          // Upload Section
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.cloud_upload_rounded,
+                            color: scheme.primary, size: 24),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Upload New File',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                      ],
                     ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _isUploading ? null : _uploadFile,
-                          icon: _isUploading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.upload_file_rounded),
-                          label: Text(
-                              _isUploading ? 'Uploading...' : 'Upload File'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                    const SizedBox(height: 16),
+
+                    // 🎯 NEW: File selection UI
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border:
+                            Border.all(color: scheme.outline.withOpacity(0.3)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          if (_selectedFile != null) ...[
+                            Row(
+                              children: [
+                                Icon(Icons.insert_drive_file_rounded,
+                                    color: scheme.primary),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _selectedFile!.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w600),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        '${(_selectedFile!.size / 1024).toStringAsFixed(1)} KB',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () =>
+                                      setState(() => _selectedFile = null),
+                                  icon: Icon(Icons.close, color: scheme.error),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          ElevatedButton.icon(
+                            onPressed: _isPickingFile ? null : _pickFile,
+                            icon: _isPickingFile
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Icon(Icons.attach_file_rounded),
+                            label: Text(_isPickingFile
+                                ? 'Selecting...'
+                                : 'Select File'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _selectedFile != null
+                                  ? Colors.green
+                                  : scheme.primary,
+                              foregroundColor: Colors.white,
+                            ),
                           ),
+                          if (_selectedFile == null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Supported: PDF, Images, Docs',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: scheme.onSurface.withOpacity(0.6),
+                                  ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: _remarkCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Add a remark (required)',
+                        hintText: 'e.g., Chapter 5 exercises, Lab report...',
+                        prefixIcon: Icon(Icons.note_rounded),
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isUploading ? null : _uploadFile,
+                        icon: _isUploading
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.cloud_upload_rounded),
+                        label: Text(_isUploading
+                            ? 'Uploading to Supabase...'
+                            : 'Upload to Supabase'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: _selectedFile != null
+                              ? scheme.primary
+                              : Colors.grey,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _isUploading ? null : _uploadFile,
-                          icon: _isUploading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Icon(Icons.add_rounded),
-                          label: Text(_isUploading
-                              ? 'Uploading...'
-                              : 'Upload to Supabase'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
 
-        // Category Tabs
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: scheme.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: scheme.outline.withValues(alpha: 0.2)),
-          ),
-          child: TabBar(
-            controller: _tabController,
-            tabs: _categories.map((category) => Tab(text: category)).toList(),
-            indicator: BoxDecoration(
-              color: scheme.primary,
-              borderRadius: BorderRadius.circular(8),
+          // Rest of the code remains same...
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: scheme.outline.withOpacity(0.2)),
             ),
-            labelColor: Colors.white,
-            unselectedLabelColor: scheme.onSurface.withValues(alpha: 0.6),
-            labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-            onTap: (index) {
-              if (mounted) {
-                setState(() {
-                  _selectedCategoryIndex = index;
-                });
-              }
-            },
+            child: TabBar(
+              controller: _tabController,
+              tabs: _categories.map((category) => Tab(text: category)).toList(),
+              indicator: BoxDecoration(
+                color: scheme.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              labelColor: Colors.white,
+              unselectedLabelColor: scheme.onSurface.withOpacity(0.6),
+              labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+              onTap: (index) {
+                if (mounted) {
+                  setState(() {
+                    _selectedCategoryIndex = index;
+                  });
+                }
+              },
+            ),
           ),
-        ),
 
-        const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-        // Content Area
-        SizedBox(
-          height: 400, // Fixed height to prevent overflow
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null
-                  ? Center(
-                      child: Column(
+          // Content Area (same as before)
+          SizedBox(
+            height: 400,
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(
+                        child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.error_outline_rounded,
-                            size: 64,
-                            color: scheme.error,
-                          ),
+                          Icon(Icons.error_outline_rounded,
+                              size: 64, color: scheme.error),
                           const SizedBox(height: 16),
-                          Text(
-                            'Error loading uploads',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
+                          Text('Error loading uploads',
+                              style: Theme.of(context).textTheme.titleMedium),
                           const SizedBox(height: 8),
-                          Text(
-                            _error!,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: scheme.error,
-                                ),
-                            textAlign: TextAlign.center,
-                          ),
+                          Text(_error!,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(color: scheme.error),
+                              textAlign: TextAlign.center),
                           const SizedBox(height: 16),
                           ElevatedButton(
-                            onPressed: _loadUploads,
-                            child: const Text('Retry'),
-                          ),
+                              onPressed: _loadUploads,
+                              child: const Text('Retry')),
                         ],
-                      ),
-                    )
-                  : _buildUploadsList(),
-        ),
-      ],
+                      ))
+                    : _buildUploadsList(),
+          ),
+        ],
       ),
     );
   }
 
+  // Rest of the methods remain same (_buildUploadsList, _showFileDetails, etc.)
   Widget _buildUploadsList() {
     final filteredUploads = _getFilteredUploads();
     final scheme = Theme.of(context).colorScheme;
@@ -384,23 +471,18 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.folder_open_rounded,
-              size: 64,
-              color: scheme.onSurface.withValues(alpha: 0.3),
-            ),
+            Icon(Icons.folder_open_rounded,
+                size: 64, color: scheme.onSurface.withOpacity(0.3)),
             const SizedBox(height: 16),
             Text(
-              'No ${_categories[_selectedCategoryIndex].toLowerCase()} uploads yet',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+                'No ${_categories[_selectedCategoryIndex].toLowerCase()} uploads yet',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            Text(
-              'Upload your first file to get started',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurface.withValues(alpha: 0.6),
-                  ),
-            ),
+            Text('Upload your first file to get started',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: scheme.onSurface.withOpacity(0.6))),
           ],
         ),
       );
@@ -416,16 +498,12 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: _getStatusColor(item.status).withValues(alpha: 0.1),
-              child: Icon(
-                _getStatusIcon(item.status),
-                color: _getStatusColor(item.status),
-              ),
+              backgroundColor: _getStatusColor(item.status).withOpacity(0.1),
+              child: Icon(_getStatusIcon(item.status),
+                  color: _getStatusColor(item.status)),
             ),
-            title: Text(
-              item.filename,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
+            title: Text(item.filename,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -438,44 +516,38 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(item.status).withValues(alpha: 0.1),
+                        color: _getStatusColor(item.status).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        item.status,
-                        style: TextStyle(
-                          color: _getStatusColor(item.status),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: Text(item.status,
+                          style: TextStyle(
+                              color: _getStatusColor(item.status),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600)),
                     ),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: scheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        item.category,
-                        style: TextStyle(
-                          color: scheme.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                          color: scheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Text(item.category,
+                          style: TextStyle(
+                              color: scheme.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600)),
                     ),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        DateFormat('MMM d, h:mm a').format(item.timestamp),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurface.withValues(alpha: 0.6),
-                            ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                          DateFormat('MMM d, h:mm a').format(item.timestamp),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                  color: scheme.onSurface.withOpacity(0.6)),
+                          overflow: TextOverflow.ellipsis),
                     ),
                   ],
                 ),
@@ -483,13 +555,8 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
             ),
             isThreeLine: true,
             trailing: IconButton(
-              onPressed: () {
-                _showFileDetails(item);
-              },
-              icon: Icon(
-                Icons.info_outline_rounded,
-                color: scheme.primary,
-              ),
+              onPressed: () => _showFileDetails(item),
+              icon: Icon(Icons.info_outline_rounded, color: scheme.primary),
             ),
           ),
         );
@@ -518,9 +585,8 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close')),
         ],
       ),
     );

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../../services/supabase_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // ADD THIS
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../providers/auth_provider.dart'; // ✅ ADD THIS IMPORT
 
 class EventsTab extends StatefulWidget {
   const EventsTab({super.key});
@@ -11,19 +13,18 @@ class EventsTab extends StatefulWidget {
 }
 
 class _EventsTabState extends State<EventsTab> {
-  List<_Event> _events = [];
+  List<Map<String, dynamic>> _events = [];
   bool _isLoading = true;
   String? _error;
-  RealtimeChannel? _realtimeChannel; // ADD REALTIME CHANNEL
+  RealtimeChannel? _realtimeChannel;
 
   @override
   void initState() {
     super.initState();
     _loadEvents();
-    _initializeRealtime(); // INITIALIZE REALTIME
+    _initializeRealtime();
   }
 
-  // ADD REALTIME INITIALIZATION
   void _initializeRealtime() {
     _realtimeChannel = SupabaseService.client
         .channel('events-tab-realtime')
@@ -53,6 +54,7 @@ class _EventsTabState extends State<EventsTab> {
         content: Text('🎉 New event: $eventTitle'),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -66,38 +68,11 @@ class _EventsTabState extends State<EventsTab> {
     }
 
     try {
-      // Load from Supabase
       final supabaseEvents = await SupabaseService.getEvents();
-
-      // Convert to local format and add demo data if needed
-      final List<_Event> allEvents = [
-        ...supabaseEvents.map((event) => _Event(
-              event['title'] ?? 'Untitled Event',
-              DateTime.parse(
-                  event['event_date'] ?? DateTime.now().toIso8601String()),
-              event['description'] ?? '',
-              event['category'] ?? 'General',
-            )),
-        // Add demo data if no Supabase data
-        if (supabaseEvents.isEmpty) ...[
-          _Event(
-            'Orientation Day',
-            DateTime.now().add(const Duration(days: 2)),
-            'Welcome to the new semester! Join us for orientation activities and meet your fellow students.',
-            'Academic',
-          ),
-          _Event(
-            'Hackathon 2024',
-            DateTime.now().add(const Duration(days: 10)),
-            '24-hour coding challenge. Build amazing projects and compete for prizes!',
-            'Technical',
-          ),
-        ],
-      ];
 
       if (mounted) {
         setState(() {
-          _events = allEvents;
+          _events = supabaseEvents;
           _isLoading = false;
         });
       }
@@ -106,27 +81,12 @@ class _EventsTabState extends State<EventsTab> {
         setState(() {
           _error = 'Failed to load events: ${e.toString()}';
           _isLoading = false;
-          // Fallback demo data
-          _events = [
-            _Event(
-              'Orientation Day',
-              DateTime.now().add(const Duration(days: 2)),
-              'Welcome to the new semester! Join us for orientation activities and meet your fellow students.',
-              'Academic',
-            ),
-            _Event(
-              'Hackathon 2024',
-              DateTime.now().add(const Duration(days: 10)),
-              '24-hour coding challenge. Build amazing projects and compete for prizes!',
-              'Technical',
-            ),
-          ];
+          _events = [];
         });
       }
     }
   }
 
-  // ADD DISPOSE METHOD FOR CLEANUP
   @override
   void dispose() {
     _realtimeChannel?.unsubscribe();
@@ -158,13 +118,12 @@ class _EventsTabState extends State<EventsTab> {
                     Text(
                       'Stay updated with all campus events and activities',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurface.withValues(alpha: 0.6),
+                            color: scheme.onSurface.withOpacity(0.6),
                           ),
                     ),
                   ],
                 ),
               ),
-              // ADD REALTIME STATUS INDICATOR
               Stack(
                 children: [
                   IconButton(
@@ -172,7 +131,6 @@ class _EventsTabState extends State<EventsTab> {
                     icon: Icon(Icons.refresh_rounded, color: scheme.primary),
                     tooltip: 'Refresh events',
                   ),
-                  // Small green dot for realtime status
                   Positioned(
                     right: 8,
                     top: 8,
@@ -237,7 +195,7 @@ class _EventsTabState extends State<EventsTab> {
                     Icon(
                       Icons.event_busy_rounded,
                       size: 64,
-                      color: scheme.onSurface.withValues(alpha: 0.3),
+                      color: scheme.onSurface.withOpacity(0.3),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -248,15 +206,27 @@ class _EventsTabState extends State<EventsTab> {
                     Text(
                       'Check back later for upcoming events',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurface.withValues(alpha: 0.6),
+                            color: scheme.onSurface.withOpacity(0.6),
                           ),
+                    ),
+                    const SizedBox(height: 16),
+                    // ✅ FIXED: Simple button without role check
+                    ElevatedButton(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Events can be added from admin dashboard'),
+                          ),
+                        );
+                      },
+                      child: const Text('Add Events'),
                     ),
                   ],
                 ),
               ),
             )
           else
-            // Events List
             Column(
               children: [
                 // REALTIME STATUS BADGE
@@ -264,9 +234,9 @@ class _EventsTabState extends State<EventsTab> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
+                    color: Colors.green.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -297,11 +267,12 @@ class _EventsTabState extends State<EventsTab> {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _events.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 16),
-                  itemBuilder: (context, i) {
-                    final event = _events[i];
-                    final isUpcoming = event.date.isAfter(DateTime.now());
+                  itemBuilder: (context, index) {
+                    final event = _events[index];
+                    final eventDate = DateTime.parse(event['event_date']);
+                    final isUpcoming = eventDate.isAfter(DateTime.now());
                     final daysUntil =
-                        event.date.difference(DateTime.now()).inDays;
+                        eventDate.difference(DateTime.now()).inDays;
 
                     return Card(
                       elevation: 2,
@@ -319,8 +290,9 @@ class _EventsTabState extends State<EventsTab> {
                                     width: 60,
                                     height: 60,
                                     decoration: BoxDecoration(
-                                      color: _getCategoryColor(event.category)
-                                          .withValues(alpha: 0.1),
+                                      color:
+                                          _getCategoryColor(event['category'])
+                                              .withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Column(
@@ -328,19 +300,19 @@ class _EventsTabState extends State<EventsTab> {
                                           MainAxisAlignment.center,
                                       children: [
                                         Text(
-                                          '${event.date.day}',
+                                          '${eventDate.day}',
                                           style: TextStyle(
                                             color: _getCategoryColor(
-                                                event.category),
+                                                event['category']),
                                             fontWeight: FontWeight.bold,
                                             fontSize: 18,
                                           ),
                                         ),
                                         Text(
-                                          DateFormat('MMM').format(event.date),
+                                          DateFormat('MMM').format(eventDate),
                                           style: TextStyle(
                                             color: _getCategoryColor(
-                                                event.category),
+                                                event['category']),
                                             fontSize: 12,
                                           ),
                                         ),
@@ -354,7 +326,7 @@ class _EventsTabState extends State<EventsTab> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          event.title,
+                                          event['title'] ?? 'Untitled Event',
                                           style: Theme.of(context)
                                               .textTheme
                                               .titleMedium
@@ -368,16 +340,16 @@ class _EventsTabState extends State<EventsTab> {
                                               horizontal: 8, vertical: 2),
                                           decoration: BoxDecoration(
                                             color: _getCategoryColor(
-                                                    event.category)
-                                                .withValues(alpha: 0.1),
+                                                    event['category'])
+                                                .withOpacity(0.1),
                                             borderRadius:
                                                 BorderRadius.circular(4),
                                           ),
                                           child: Text(
-                                            event.category,
+                                            event['category'] ?? 'General',
                                             style: TextStyle(
                                               color: _getCategoryColor(
-                                                  event.category),
+                                                  event['category']),
                                               fontSize: 12,
                                               fontWeight: FontWeight.w500,
                                             ),
@@ -385,13 +357,14 @@ class _EventsTabState extends State<EventsTab> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          event.description,
+                                          event['description'] ??
+                                              'No description available',
                                           style: Theme.of(context)
                                               .textTheme
                                               .bodyMedium
                                               ?.copyWith(
                                                 color: scheme.onSurface
-                                                    .withValues(alpha: 0.7),
+                                                    .withOpacity(0.7),
                                               ),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
@@ -404,7 +377,7 @@ class _EventsTabState extends State<EventsTab> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: Colors.green.withValues(alpha: 0.1),
+                                        color: Colors.green.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
@@ -428,35 +401,35 @@ class _EventsTabState extends State<EventsTab> {
                                   Icon(
                                     Icons.calendar_today_rounded,
                                     size: 16,
-                                    color: scheme.onSurface.withValues(alpha: 0.6),
+                                    color: scheme.onSurface.withOpacity(0.6),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     DateFormat('EEE, MMM d, yyyy')
-                                        .format(event.date),
+                                        .format(eventDate),
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodySmall
                                         ?.copyWith(
                                           color:
-                                              scheme.onSurface.withValues(alpha: 0.6),
+                                              scheme.onSurface.withOpacity(0.6),
                                         ),
                                   ),
                                   const SizedBox(width: 16),
                                   Icon(
                                     Icons.access_time_rounded,
                                     size: 16,
-                                    color: scheme.onSurface.withValues(alpha: 0.6),
+                                    color: scheme.onSurface.withOpacity(0.6),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    DateFormat('h:mm a').format(event.date),
+                                    DateFormat('h:mm a').format(eventDate),
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodySmall
                                         ?.copyWith(
                                           color:
-                                              scheme.onSurface.withValues(alpha: 0.6),
+                                              scheme.onSurface.withOpacity(0.6),
                                         ),
                                   ),
                                 ],
@@ -526,8 +499,9 @@ class _EventsTabState extends State<EventsTab> {
     );
   }
 
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
+  Color _getCategoryColor(String? category) {
+    final cat = category?.toLowerCase() ?? 'general';
+    switch (cat) {
       case 'technical':
         return Colors.blue;
       case 'academic':
@@ -543,11 +517,13 @@ class _EventsTabState extends State<EventsTab> {
     }
   }
 
-  void _showEventDetails(_Event event) {
+  void _showEventDetails(Map<String, dynamic> event) {
+    final eventDate = DateTime.parse(event['event_date']);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(event.title),
+        title: Text(event['title'] ?? 'Untitled Event'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -555,25 +531,25 @@ class _EventsTabState extends State<EventsTab> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: _getCategoryColor(event.category).withValues(alpha: 0.1),
+                color: _getCategoryColor(event['category']).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                event.category,
+                event['category'] ?? 'General',
                 style: TextStyle(
-                  color: _getCategoryColor(event.category),
+                  color: _getCategoryColor(event['category']),
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
             const SizedBox(height: 12),
-            Text(event.description),
+            Text(event['description'] ?? 'No description available'),
             const SizedBox(height: 16),
             Row(
               children: [
                 const Icon(Icons.calendar_today_rounded, size: 16),
                 const SizedBox(width: 8),
-                Text(DateFormat('EEEE, MMMM d, yyyy').format(event.date)),
+                Text(DateFormat('EEEE, MMMM d, yyyy').format(eventDate)),
               ],
             ),
             const SizedBox(height: 8),
@@ -581,7 +557,7 @@ class _EventsTabState extends State<EventsTab> {
               children: [
                 const Icon(Icons.access_time_rounded, size: 16),
                 const SizedBox(width: 8),
-                Text(DateFormat('h:mm a').format(event.date)),
+                Text(DateFormat('h:mm a').format(eventDate)),
               ],
             ),
           ],
@@ -604,13 +580,4 @@ class _EventsTabState extends State<EventsTab> {
       ),
     );
   }
-}
-
-class _Event {
-  final String title;
-  final DateTime date;
-  final String description;
-  final String category;
-
-  _Event(this.title, this.date, this.description, this.category);
 }

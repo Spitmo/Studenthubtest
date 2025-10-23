@@ -1,123 +1,234 @@
-import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../src/models/file_upload_model.dart';
 
 class SupabaseService {
   static const String supabaseUrl = 'https://qbutsawjtzvnoffkcsor.supabase.co';
-  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFidXRzYXdqdHp2bm9mZmtjc29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTkyMjQsImV4cCI6MjA3NjI5NTIyNH0.fquFrkAr5rfMccFT7I_lXJuUOnrVULEtPtV2pjBFRZk';
+  static const String supabaseAnonKey =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFidXRzYXdqdHp2bm9mZmtjc29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTkyMjQsImV4cCI6MjA3NjI5NTIyNH0.fquFrkAr5rfMccFT7I_lXJuUOnrVULEtPtV2pjBFRZk';
 
   static SupabaseClient get client => Supabase.instance.client;
+
+  // Realtime channels
+  static RealtimeChannel? _eventsChannel;
+  static RealtimeChannel? _messagesChannel;
+  static RealtimeChannel? _uploadsChannel;
+  static RealtimeChannel? _usersChannel;
 
   static Future<void> initialize() async {
     await Supabase.initialize(
       url: supabaseUrl,
       anonKey: supabaseAnonKey,
     );
+
+    // Initialize realtime channels
+    _initializeRealtimeChannels();
   }
 
-  // User Management
-  static Future<AuthResponse> signUp({
-    required String email,
-    required String password,
-    required String name,
-    required String rollNumber,
-  }) async {
-    final response = await client.auth.signUp(
-      email: email,
-      password: password,
-      data: {
-        'name': name,
-        'roll_number': rollNumber,
-      },
-    );
-    return response;
+  // ==================== REALTIME IMPLEMENTATION ====================
+
+  static void _initializeRealtimeChannels() {
+    // Events realtime channel
+    _eventsChannel = client.channel('events-realtime').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'events',
+          callback: (payload) {
+            print('🎯 Events Real-time Update: ${payload.eventType}');
+          },
+        );
+
+    // Messages realtime channel
+    _messagesChannel = client.channel('messages-realtime').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'messages',
+          callback: (payload) {
+            print('💬 Messages Real-time Update: ${payload.eventType}');
+          },
+        );
+
+    // Uploads realtime channel
+    _uploadsChannel = client.channel('uploads-realtime').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'uploads',
+          callback: (payload) {
+            print('📁 Uploads Real-time Update: ${payload.eventType}');
+          },
+        );
+
+    // Users realtime channel
+    _usersChannel = client.channel('users-realtime').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'users',
+          callback: (payload) {
+            print('👤 Users Real-time Update: ${payload.eventType}');
+          },
+        );
+
+    // Subscribe to all channels
+    _subscribeToChannels();
   }
 
-  static Future<AuthResponse> signIn({
-    required String email,
-    required String password,
-  }) async {
-    final response = await client.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
-    return response;
-  }
+  static void _subscribeToChannels() {
+    _eventsChannel?.subscribe((status, error) {
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        print('✅ Events realtime subscribed');
+      }
+      if (error != null) {
+        print('❌ Events realtime error: $error');
+      }
+    });
 
-  static Future<void> signOut() async {
-    await client.auth.signOut();
-  }
+    _messagesChannel?.subscribe((status, error) {
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        print('✅ Messages realtime subscribed');
+      }
+      if (error != null) {
+        print('❌ Messages realtime error: $error');
+      }
+    });
 
-  static User? get currentUser => client.auth.currentUser;
-  static bool get isLoggedIn => currentUser != null;
+    _uploadsChannel?.subscribe((status, error) {
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        print('✅ Uploads realtime subscribed');
+      }
+      if (error != null) {
+        print('❌ Uploads realtime error: $error');
+      }
+    });
 
-  // User Profile Management
-  static Future<void> createUserProfile({
-    required String userId,
-    required String name,
-    required String rollNumber,
-    required String role,
-  }) async {
-    await client.from('user_profiles').insert({
-      'id': userId,
-      'name': name,
-      'roll_number': rollNumber,
-      'role': role,
-      'is_approved': role == 'admin', // Auto-approve admins
-      'created_at': DateTime.now().toIso8601String(),
+    _usersChannel?.subscribe((status, error) {
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        print('✅ Users realtime subscribed');
+      }
+      if (error != null) {
+        print('❌ Users realtime error: $error');
+      }
     });
   }
 
-  static Future<Map<String, dynamic>?> getUserProfile(String userId) async {
-    final response = await client
-        .from('user_profiles')
-        .select()
-        .eq('id', userId)
-        .single();
-    return response;
+  // Realtime subscription methods for screens
+  static RealtimeChannel getEventsRealtime(Function(dynamic) onUpdate) {
+    return client.channel('events-custom').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'events',
+          callback: onUpdate,
+        );
   }
 
-  static Future<void> updateUserProfile(String userId, Map<String, dynamic> updates) async {
-    await client
-        .from('user_profiles')
-        .update(updates)
-        .eq('id', userId);
+  static RealtimeChannel getMessagesRealtime(Function(dynamic) onUpdate) {
+    return client.channel('messages-custom').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'messages',
+          callback: onUpdate,
+        );
   }
 
-  static Future<void> approveUser(String userId) async {
-    await client
-        .from('user_profiles')
-        .update({'is_approved': true, 'approved_at': DateTime.now().toIso8601String()})
-        .eq('id', userId);
+  static RealtimeChannel getUploadsRealtime(Function(dynamic) onUpdate) {
+    return client.channel('uploads-custom').onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'uploads',
+          callback: onUpdate,
+        );
   }
 
-  static Future<void> rejectUser(String userId) async {
-    await client
-        .from('user_profiles')
-        .delete()
-        .eq('id', userId);
+  // Cleanup method
+  static void dispose() {
+    _eventsChannel?.unsubscribe();
+    _messagesChannel?.unsubscribe();
+    _uploadsChannel?.unsubscribe();
+    _usersChannel?.unsubscribe();
+
+    _eventsChannel = null;
+    _messagesChannel = null;
+    _uploadsChannel = null;
+    _usersChannel = null;
+
+    print('🔴 All realtime channels disposed');
   }
 
-  // Pending Users Management
-  static Future<List<Map<String, dynamic>>> getPendingUsers() async {
-    final response = await client
-        .from('user_profiles')
-        .select()
-        .eq('is_approved', false)
-        .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+  // ==================== AUTH METHODS ====================
+
+  // Get user session from SharedPreferences
+  static Future<Map<String, dynamic>> getUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'user_id': prefs.getString('user_id'),
+      'user_role': prefs.getString('user_role'),
+      'roll_number': prefs.getString('roll_number'),
+      'user_name': prefs.getString('user_name'),
+    };
   }
+
+  // Save user session to SharedPreferences
+  static Future<void> saveUserSession(
+    String userId,
+    String userRole,
+    String rollNumber, {
+    String? userName,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_id', userId);
+    await prefs.setString('user_role', userRole);
+    await prefs.setString('roll_number', rollNumber);
+    if (userName != null) {
+      await prefs.setString('user_name', userName);
+    }
+  }
+
+  // Clear user session
+  static Future<void> clearUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user_id');
+    await prefs.remove('user_role');
+    await prefs.remove('roll_number');
+    await prefs.remove('user_name');
+  }
+
+  // Get user by ID from Supabase
+  static Future<Map<String, dynamic>?> getUserById(String userId) async {
+    try {
+      final response =
+          await client.from('users').select().eq('id', userId).single();
+      return response;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Get users by access code from Supabase
+  static Future<List<Map<String, dynamic>>> getUsersByAccessCode(
+      String accessCode) async {
+    try {
+      final response =
+          await client.from('users').select().eq('access_code', accessCode);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // ==================== USER MANAGEMENT ====================
 
   static Future<List<Map<String, dynamic>>> getAllUsers() async {
-    final response = await client
-        .from('user_profiles')
-        .select()
-        .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      final response = await client
+          .from('users')
+          .select()
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      return [];
+    }
   }
 
-  // Events Management
+  // ==================== EVENTS MANAGEMENT ====================
+
   static Future<void> createEvent({
     required String title,
     required DateTime date,
@@ -126,7 +237,7 @@ class SupabaseService {
   }) async {
     await client.from('events').insert({
       'title': title,
-      'date': date.toIso8601String(),
+      'event_date': date.toIso8601String(),
       'description': description,
       'created_by': createdBy,
       'created_at': DateTime.now().toIso8601String(),
@@ -134,103 +245,182 @@ class SupabaseService {
   }
 
   static Future<List<Map<String, dynamic>>> getEvents() async {
-    final response = await client
-        .from('events')
-        .select()
-        .order('date', ascending: true);
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      final response = await client
+          .from('events')
+          .select()
+          .order('event_date', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      return [];
+    }
   }
 
   static Future<void> deleteEvent(String eventId) async {
-    await client
-        .from('events')
-        .delete()
-        .eq('id', eventId);
+    await client.from('events').delete().eq('id', eventId);
   }
 
-  // File Uploads Management
-  static Future<void> createFileUpload({
+  // ==================== UPLOADS MANAGEMENT ====================
+
+  static Future<void> createUpload({
     required String filename,
     required String remark,
     required String uploadedBy,
   }) async {
-    await client.from('file_uploads').insert({
-      'filename': filename,
+    await client.from('uploads').insert({
+      'file_name': filename,
       'remark': remark,
-      'uploaded_by': uploadedBy,
+      'student_id': uploadedBy,
       'status': 'pending',
       'created_at': DateTime.now().toIso8601String(),
     });
   }
 
   static Future<List<Map<String, dynamic>>> getPendingUploads() async {
-    final response = await client
-        .from('file_uploads')
-        .select()
-        .eq('status', 'pending')
-        .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      final response = await client
+          .from('uploads')
+          .select()
+          .eq('status', 'pending')
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getStudentUploads(
+      String studentId) async {
+    try {
+      final response = await client
+          .from('uploads')
+          .select()
+          .eq('student_id', studentId)
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      return [];
+    }
   }
 
   static Future<void> approveUpload(String uploadId) async {
-    await client
-        .from('file_uploads')
-        .update({
+    await client.from('uploads').update({
       'status': 'approved',
-      'approved_at': DateTime.now().toIso8601String(),
-    })
-        .eq('id', uploadId);
+    }).eq('id', uploadId);
   }
 
   static Future<void> rejectUpload(String uploadId) async {
-    await client
-        .from('file_uploads')
-        .update({
+    await client.from('uploads').update({
+      'status': 'rejected',
+    }).eq('id', uploadId);
+  }
+
+  // ==================== MESSAGES MANAGEMENT ====================
+
+  static Future<void> createMessage({
+    required String message,
+    required String userId,
+  }) async {
+    await client.from('messages').insert({
+      'message': message,
+      'user_id': userId,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  static Future<List<Map<String, dynamic>>> getMessages() async {
+    try {
+      final response = await client
+          .from('messages')
+          .select()
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // ==================== ACCESS REQUESTS MANAGEMENT ====================
+
+  static Future<void> createAccessRequest({
+    required String name,
+  }) async {
+    await client.from('access_requests').insert({
+      'name': name,
+      'status': 'pending',
+      'requested_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  static Future<List<Map<String, dynamic>>> getPendingAccessRequests() async {
+    try {
+      final response = await client
+          .from('access_requests')
+          .select()
+          .eq('status', 'pending')
+          .order('requested_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static Future<void> approveAccessRequest(
+      String requestId, String accessCode) async {
+    await client.from('access_requests').update({
+      'status': 'approved',
+      'access_code': accessCode,
+      'approved_at': DateTime.now().toIso8601String(),
+    }).eq('id', requestId);
+  }
+
+  static Future<void> rejectAccessRequest(String requestId) async {
+    await client.from('access_requests').update({
       'status': 'rejected',
       'rejected_at': DateTime.now().toIso8601String(),
-    })
-        .eq('id', uploadId);
+    }).eq('id', requestId);
   }
 
-  // Analytics
+  // ==================== ANALYTICS ====================
+
   static Future<Map<String, int>> getAnalytics() async {
-    // --- FIX 1 ---
-    final totalStudents = await client
-        .from('user_profiles')
-        .select('id')
-        .eq('role', 'student')
-        .eq('is_approved', true)
-        .count(CountOption.exact); // Chained .count()
+    try {
+      final studentsResp = await client
+          .from('users')
+          .select('id')
+          .eq('role', 'student')
+          .count(CountOption.exact);
 
-    // --- FIX 2 ---
-    final pendingUploads = await client
-        .from('file_uploads')
-        .select('id')
-        .eq('status', 'pending')
-        .count(CountOption.exact); // Chained .count()
+      final pendingUploadsResp = await client
+          .from('uploads')
+          .select('id')
+          .eq('status', 'pending')
+          .count(CountOption.exact);
 
-    // --- FIX 3 ---
-    final totalEvents = await client
-        .from('events')
-        .select('id')
-        .count(CountOption.exact); // Chained .count()
+      final eventsResp =
+          await client.from('events').select('id').count(CountOption.exact);
 
-    // --- FIX 4 ---
-    final totalUsers = await client
-        .from('user_profiles')
-        .select('id')
-        .eq('is_approved', true)
-        .count(CountOption.exact); // Chained .count()
+      final usersResp =
+          await client.from('users').select('id').count(CountOption.exact);
 
-    return {
-      'totalStudents': totalStudents.count,
-      'pendingUploads': pendingUploads.count,
-      'totalEvents': totalEvents.count,
-      'totalUsers': totalUsers.count,
-    };
+      return {
+        'totalStudents': studentsResp.count,
+        'pendingUploads': pendingUploadsResp.count,
+        'totalEvents': eventsResp.count,
+        'totalUsers': usersResp.count,
+      };
+    } catch (e) {
+      return {
+        'totalStudents': 0,
+        'pendingUploads': 0,
+        'totalEvents': 0,
+        'totalUsers': 0,
+      };
+    }
   }
 
-  // Theme Preferences
+  // ==================== THEME PREFERENCES ====================
+
   static Future<void> saveThemePreference(bool isDarkMode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isDarkMode', isDarkMode);
@@ -241,130 +431,14 @@ class SupabaseService {
     return prefs.getBool('isDarkMode') ?? false;
   }
 
-  // Session Management - For AuthProvider compatibility
-  static Future<Map<String, dynamic>> getUserSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    return {
-      'user_id': prefs.getString('user_id'),
-      'user_role': prefs.getString('user_role'),
-      'roll_number': prefs.getString('roll_number'),
-      'user_name': prefs.getString('user_name'),
-      'user_email': prefs.getString('user_email'),
-    };
-  }
+  // ==================== CONNECTION TEST ====================
 
-  static Future<void> saveUserSession(
-    String userId,
-    dynamic userRole, // Can be UserRole enum or String
-    String rollNumber, {
-    String? userName,
-    String? userEmail,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_id', userId);
-    await prefs.setString('user_role', userRole.toString().split('.').last); // Convert enum to string
-    await prefs.setString('roll_number', rollNumber);
-    if (userName != null) await prefs.setString('user_name', userName);
-    if (userEmail != null) await prefs.setString('user_email', userEmail);
-  }
-
-  static Future<void> clearUserSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('user_id');
-    await prefs.remove('user_role');
-    await prefs.remove('roll_number');
-    await prefs.remove('user_name');
-    await prefs.remove('user_email');
-  }
-
-  // Connection check
-  static Future<bool> isConnected() async {
+  static Future<bool> testConnection() async {
     try {
-      await client.from('user_profiles').select('id').limit(1);
+      await client.from('users').select('id').limit(1);
       return true;
     } catch (e) {
       return false;
     }
-  }
-
-  // File Storage Methods
-  static Future<String> uploadFile(
-    File file,
-    String filename,
-    String bucket,
-  ) async {
-    final bytes = await file.readAsBytes();
-    final filePath = '${DateTime.now().millisecondsSinceEpoch}_$filename';
-    
-    await client.storage.from(bucket).uploadBinary(
-      filePath,
-      bytes,
-    );
-    
-    return client.storage.from(bucket).getPublicUrl(filePath);
-  }
-
-  static Future<void> deleteFile(String path, String bucket) async {
-    await client.storage.from(bucket).remove([path]);
-  }
-
-  // File Upload Management with Model
-  static Future<FileUploadModel> createFileUploadWithModel({
-    required String filename,
-    required String originalName,
-    required String remark,
-    required String uploadedBy,
-    required String fileUrl,
-    required int fileSize,
-    required String mimeType,
-    List<String> tags = const [],
-  }) async {
-    final data = {
-      'filename': filename,
-      'original_name': originalName,
-      'remark': remark,
-      'uploaded_by': uploadedBy,
-      'file_url': fileUrl,
-      'file_size': fileSize,
-      'mime_type': mimeType,
-      'tags': tags,
-      'status': 'pending',
-      'created_at': DateTime.now().toIso8601String(),
-    };
-    
-    final response = await client
-        .from('file_uploads')
-        .insert(data)
-        .select()
-        .single();
-    
-    return FileUploadModel.fromJson(response);
-  }
-
-  static Future<List<FileUploadModel>> getFileUploads({
-    UploadStatus? status,
-  }) async {
-    var query = client.from('file_uploads').select();
-    
-    if (status != null) {
-      query = query.eq('status', status.name);
-    }
-    
-    final response = await query.order('created_at', ascending: false);
-    return (response as List)
-        .map((json) => FileUploadModel.fromJson(json as Map<String, dynamic>))
-        .toList();
-  }
-
-  static Future<List<FileUploadModel>> searchFiles(String query) async {
-    final response = await client
-        .from('file_uploads')
-        .select()
-        .or('filename.ilike.%$query%,remark.ilike.%$query%,tags.cs.{$query}')
-        .order('created_at', ascending: false);
-    
-    return (response as List)
-        .map((json) => FileUploadModel.fromJson(json as Map<String, dynamic>))
-        .toList();
   }
 }

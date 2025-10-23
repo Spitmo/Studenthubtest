@@ -1,16 +1,28 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
-import '../../services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 abstract class BaseRepository {
   // Check network connectivity
   Future<bool> hasNetworkConnection() async {
-    final connectivityResult = await Connectivity().checkConnectivity();
-    return !connectivityResult.contains(ConnectivityResult.none);
+    try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      return !connectivityResult.contains(ConnectivityResult.none);
+    } catch (e) {
+      return false;
+    }
   }
 
-  // Check if Supabase is connected
+  // Check if Supabase is connected - FIXED VERSION
   Future<bool> hasSupabaseConnection() async {
-    return await SupabaseService.isConnected();
+    try {
+      // Direct Supabase instance check
+      final client = Supabase.instance.client;
+      // Try a simple query to verify connection
+      await client.from('users').select('id').limit(1);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   // Handle errors consistently

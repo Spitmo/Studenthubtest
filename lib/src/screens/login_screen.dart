@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../src/providers/auth_provider.dart';
-import '../../src/providers/theme_provider.dart';
-import '../../src/routes.dart';
-import '../../src/models/user_model.dart';
+import '../providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
+import '../routes.dart';
+import '../models/user_model.dart';
 import 'auth/registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -45,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _error = null);
     final auth = context.read<AuthProvider>();
     try {
-      // FIXED: Sirf access code se login
+      // ✅ PERMANENT FIX: Sirf accessCode do
       await auth.login(accessCode: _codeController.text.trim());
 
       if (auth.role == UserRole.student) {
@@ -127,7 +127,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       prefixIcon:
                                           Icon(Icons.person_outline_rounded),
                                     ),
-                                    // REMOVED validator - optional field
+                                    // ❌ VALIDATOR REMOVED
                                   ),
                                   const SizedBox(height: 12),
                                   TextFormField(

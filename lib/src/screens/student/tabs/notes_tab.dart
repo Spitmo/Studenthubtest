@@ -5,7 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../../providers/auth_provider.dart';
-import '../../../services/supabase_service.dart';
+import '../../../repositories/file_repository.dart'; // 🆕 ADD FILE REPOSITORY
+import '../../../models/file_upload_model.dart'; // 🆕 ADD FILE UPLOAD MODEL
 
 class NotesTab extends StatefulWidget {
   const NotesTab({super.key});
@@ -15,11 +16,12 @@ class NotesTab extends StatefulWidget {
 }
 
 class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
-  List<_UploadItem> _uploads = [];
+  List<FileUploadModel> _uploads = []; // 🆕 USE ACTUAL MODEL
   final _remarkCtrl = TextEditingController();
 
-  // 🎯 NEW: File selection
-  PlatformFile? _selectedFile;
+  // 🆕 UPDATED: Store both PlatformFile and actual File
+  PlatformFile? _selectedPlatformFile;
+  File? _selectedFile;
   bool _isPickingFile = false;
 
   // Categories
@@ -36,6 +38,9 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
   bool _isUploading = false;
   String? _error;
 
+  // 🆕 ADD FILE REPOSITORY
+  final FileRepository _fileRepository = FileRepository();
+
   @override
   void initState() {
     super.initState();
@@ -48,21 +53,28 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // 🎯 NEW: File picker method
+  // 🆕 UPDATED: File picker that gets actual File object
   Future<void> _pickFile() async {
     setState(() => _isPickingFile = true);
 
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'],
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'txt'],
         allowMultiple: false,
       );
 
       if (result != null && result.files.single.path != null) {
+        final platformFile = result.files.first;
+        final file = File(platformFile.path!); // 🆕 GET ACTUAL FILE
+
         setState(() {
-          _selectedFile = result.files.first;
+          _selectedPlatformFile = platformFile;
+          _selectedFile = file;
         });
+
+        print(
+            '📁 File selected: ${platformFile.name} (${(platformFile.size / 1024).toStringAsFixed(1)} KB)');
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -73,6 +85,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
     }
   }
 
+  // 🆕 UPDATED: Load uploads using FileRepository
   Future<void> _loadUploads() async {
     setState(() {
       _isLoading = true;
@@ -82,40 +95,11 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
     try {
       final auth = context.read<AuthProvider>();
       final studentUploads =
-          await SupabaseService.getStudentUploads(auth.userId!);
-
-      final List<_UploadItem> allUploads = [
-        ...studentUploads.map((upload) => _UploadItem(
-              id: upload['id']?.toString(),
-              filename: upload['file_name'] ?? 'Unknown',
-              remark: upload['remark'] ?? '',
-              category: _getCategoryFromFilename(upload['file_name'] ?? ''),
-              status: _getStatusFromSupabase(upload['status'] ?? 'pending'),
-              timestamp: DateTime.parse(
-                  upload['created_at'] ?? DateTime.now().toIso8601String()),
-            )),
-        // Demo data only if no actual uploads
-        if (studentUploads.isEmpty) ...[
-          _UploadItem(
-            filename: 'Math_Assignment_1.pdf',
-            remark: 'Chapter 5 exercises',
-            category: 'Assignment',
-            status: 'Approved',
-            timestamp: DateTime.now().subtract(const Duration(days: 2)),
-          ),
-          _UploadItem(
-            filename: 'Physics_Lab_Report.pdf',
-            remark: 'Experiment 3 results',
-            category: 'Practical',
-            status: 'Pending',
-            timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-          ),
-        ],
-      ];
+          await _fileRepository.getFiles(uploadedBy: auth.userId!);
 
       if (mounted) {
         setState(() {
-          _uploads = allUploads;
+          _uploads = studentUploads;
           _isLoading = false;
         });
       }
@@ -142,22 +126,10 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
     return 'Regular';
   }
 
-  String _getStatusFromSupabase(String status) {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return 'Approved';
-      case 'rejected':
-        return 'Rejected';
-      case 'pending':
-      default:
-        return 'Pending';
-    }
-  }
-
-  // 🎯 UPDATED: Proper file upload with validation
+  // 🆕 UPDATED: Actual file upload to Supabase Storage
   Future<void> _uploadFile() async {
     // ✅ VALIDATION 1: File must be selected
-    if (_selectedFile == null) {
+    if (_selectedFile == null || _selectedPlatformFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('❌ Please select a file first')),
       );
@@ -172,36 +144,41 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
       return;
     }
 
+    // ✅ VALIDATION 3: File size check (max 10MB)
+    final fileSizeMB = _selectedPlatformFile!.size / (1024 * 1024);
+    if (fileSizeMB > 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ File size must be less than 10MB')),
+      );
+      return;
+    }
+
     setState(() => _isUploading = true);
 
     try {
       final auth = context.read<AuthProvider>();
+      final filename = _selectedPlatformFile!.name;
 
-      // Use actual filename instead of hardcoded
-      final filename = _selectedFile!.name;
+      print('🚀 Starting ACTUAL file upload: $filename');
 
-      // Upload to Supabase
-      await SupabaseService.createUpload(
-        filename: filename,
+      // 🆕 ACTUAL FILE UPLOAD TO SUPABASE STORAGE
+      final uploadedFile = await _fileRepository.uploadFile(
+        file: _selectedFile!,
+        originalName: filename,
         remark: _remarkCtrl.text.trim(),
-        uploadedBy: auth.userId!, // ✅ Use userId instead of rollNumber
+        uploadedBy: auth.userId!,
       );
+
+      print('✅ ACTUAL file upload successful: ${uploadedFile.fileUrl}');
 
       // Add to local list
       if (mounted) {
         setState(() {
-          _uploads.insert(
-              0,
-              _UploadItem(
-                filename: filename,
-                remark: _remarkCtrl.text.trim(),
-                category: _getCategoryFromFilename(filename),
-                status: 'Pending',
-                timestamp: DateTime.now(),
-              ));
+          _uploads.insert(0, uploadedFile);
 
           // Clear form
           _remarkCtrl.clear();
+          _selectedPlatformFile = null;
           _selectedFile = null;
           _isUploading = false;
         });
@@ -209,11 +186,14 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ File uploaded successfully!'),
+          content: Text('✅ File uploaded to Supabase Storage!'),
           backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
         ),
       );
     } catch (e) {
+      print('❌ ACTUAL upload error: $e');
+
       if (mounted) {
         setState(() => _isUploading = false);
       }
@@ -222,20 +202,70 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
         SnackBar(
           content: Text('❌ Upload failed: ${e.toString()}'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
         ),
       );
     }
   }
 
-  List<_UploadItem> _getFilteredUploads() {
+  // 🆕 NEW: Download file function
+  Future<void> _downloadFile(FileUploadModel file) async {
+    if (file.fileUrl == null || file.fileUrl!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ No file available for download')),
+      );
+      return;
+    }
+
+    try {
+      // Show download dialog with file URL
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Download File'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('File: ${file.filename}'),
+              if (file.fileSize != null) ...[
+                const SizedBox(height: 8),
+                Text('Size: ${(file.fileSize! / 1024).toStringAsFixed(1)} KB'),
+              ],
+              const SizedBox(height: 16),
+              const Text('File is ready for download from:'),
+              const SizedBox(height: 8),
+              SelectableText(
+                file.fileUrl!,
+                style: const TextStyle(fontSize: 12, color: Colors.blue),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Download failed: ${e.toString()}')),
+      );
+    }
+  }
+
+  List<FileUploadModel> _getFilteredUploads() {
     if (_selectedCategoryIndex == 0) return _uploads;
     final selectedCategory = _categories[_selectedCategoryIndex];
     return _uploads
-        .where((upload) => upload.category == selectedCategory)
+        .where((upload) =>
+            _getCategoryFromFilename(upload.filename) == selectedCategory)
         .toList();
   }
 
-  // 🎯 NEW: Category icon helper
+  // Category icon helper
   Icon _getCategoryIcon(String category) {
     switch (category) {
       case 'Regular':
@@ -246,6 +276,42 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
         return const Icon(Icons.science_rounded, size: 18);
       default:
         return const Icon(Icons.folder_rounded, size: 18);
+    }
+  }
+
+  // 🆕 UPDATED: Get status color from UploadStatus enum
+  Color _getStatusColor(UploadStatus status) {
+    switch (status) {
+      case UploadStatus.approved:
+        return Colors.green;
+      case UploadStatus.pending:
+        return Colors.orange;
+      case UploadStatus.rejected:
+        return Colors.red;
+    }
+  }
+
+  // 🆕 UPDATED: Get status icon from UploadStatus enum
+  IconData _getStatusIcon(UploadStatus status) {
+    switch (status) {
+      case UploadStatus.approved:
+        return Icons.check_circle_rounded;
+      case UploadStatus.pending:
+        return Icons.schedule_rounded;
+      case UploadStatus.rejected:
+        return Icons.cancel_rounded;
+    }
+  }
+
+  // 🆕 UPDATED: Get status text from UploadStatus enum
+  String _getStatusText(UploadStatus status) {
+    switch (status) {
+      case UploadStatus.approved:
+        return 'Approved';
+      case UploadStatus.pending:
+        return 'Pending';
+      case UploadStatus.rejected:
+        return 'Rejected';
     }
   }
 
@@ -282,7 +348,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                     ),
                     const SizedBox(height: 16),
 
-                    // 🎯 NEW: File selection UI
+                    // File selection UI
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
@@ -293,7 +359,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                       ),
                       child: Column(
                         children: [
-                          if (_selectedFile != null) ...[
+                          if (_selectedPlatformFile != null) ...[
                             Row(
                               children: [
                                 Icon(Icons.insert_drive_file_rounded,
@@ -305,13 +371,13 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        _selectedFile!.name,
+                                        _selectedPlatformFile!.name,
                                         style: const TextStyle(
                                             fontWeight: FontWeight.w600),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       Text(
-                                        '${(_selectedFile!.size / 1024).toStringAsFixed(1)} KB',
+                                        '${(_selectedPlatformFile!.size / 1024).toStringAsFixed(1)} KB',
                                         style: Theme.of(context)
                                             .textTheme
                                             .bodySmall,
@@ -320,8 +386,12 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                                   ),
                                 ),
                                 IconButton(
-                                  onPressed: () =>
-                                      setState(() => _selectedFile = null),
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedPlatformFile = null;
+                                      _selectedFile = null;
+                                    });
+                                  },
                                   icon: Icon(Icons.close, color: scheme.error),
                                 ),
                               ],
@@ -341,16 +411,16 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                                 ? 'Selecting...'
                                 : 'Select File'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: _selectedFile != null
+                              backgroundColor: _selectedPlatformFile != null
                                   ? Colors.green
                                   : scheme.primary,
                               foregroundColor: Colors.white,
                             ),
                           ),
-                          if (_selectedFile == null) ...[
+                          if (_selectedPlatformFile == null) ...[
                             const SizedBox(height: 8),
                             Text(
-                              'Supported: PDF, Images, Docs',
+                              'Supported: PDF, Images, Docs (Max 10MB)',
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
@@ -391,11 +461,11 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                                     strokeWidth: 2, color: Colors.white))
                             : const Icon(Icons.cloud_upload_rounded),
                         label: Text(_isUploading
-                            ? 'Uploading to Supabase...'
-                            : 'Upload to Supabase'),
+                            ? 'Uploading to Supabase Storage...'
+                            : 'Upload to Supabase Storage'),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          backgroundColor: _selectedFile != null
+                          backgroundColor: _selectedPlatformFile != null
                               ? scheme.primary
                               : Colors.grey,
                         ),
@@ -407,7 +477,7 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
             ),
           ),
 
-          // 🎯 UPDATED: Material 3 Segmented Button Tabs
+          // Material 3 Segmented Button Tabs
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: SingleChildScrollView(
@@ -508,23 +578,23 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: filteredUploads.length,
       itemBuilder: (context, index) {
-        final item = filteredUploads[index];
+        final file = filteredUploads[index];
         return Card(
           elevation: 1,
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: _getStatusColor(item.status).withOpacity(0.1),
-              child: Icon(_getStatusIcon(item.status),
-                  color: _getStatusColor(item.status)),
+              backgroundColor: _getStatusColor(file.status).withOpacity(0.1),
+              child: Icon(_getStatusIcon(file.status),
+                  color: _getStatusColor(file.status)),
             ),
-            title: Text(item.filename,
+            title: Text(file.filename,
                 style: const TextStyle(fontWeight: FontWeight.w600)),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
-                Text(item.remark),
+                Text(file.remark),
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -532,12 +602,12 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(item.status).withOpacity(0.1),
+                        color: _getStatusColor(file.status).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(item.status,
+                      child: Text(_getStatusText(file.status),
                           style: TextStyle(
-                              color: _getStatusColor(item.status),
+                              color: _getStatusColor(file.status),
                               fontSize: 12,
                               fontWeight: FontWeight.w600)),
                     ),
@@ -548,16 +618,32 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                       decoration: BoxDecoration(
                           color: scheme.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8)),
-                      child: Text(item.category,
+                      child: Text(_getCategoryFromFilename(file.filename),
                           style: TextStyle(
                               color: scheme.primary,
                               fontSize: 12,
                               fontWeight: FontWeight.w600)),
                     ),
                     const SizedBox(width: 8),
+                    if (file.fileSize != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8)),
+                        child: Text(
+                            '${(file.fileSize! / 1024).toStringAsFixed(1)} KB',
+                            style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     Flexible(
                       child: Text(
-                          DateFormat('MMM d, h:mm a').format(item.timestamp),
+                          DateFormat('MMM d, h:mm a').format(file.createdAt),
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
@@ -567,12 +653,36 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
                     ),
                   ],
                 ),
+                // 🆕 Show file URL if available
+                if (file.fileUrl != null && file.fileUrl!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Storage: Supabase',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ],
               ],
             ),
             isThreeLine: true,
-            trailing: IconButton(
-              onPressed: () => _showFileDetails(item),
-              icon: Icon(Icons.info_outline_rounded, color: scheme.primary),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 🆕 Download button for uploaded files
+                if (file.fileUrl != null && file.fileUrl!.isNotEmpty)
+                  IconButton(
+                    onPressed: () => _downloadFile(file),
+                    icon: Icon(Icons.download_rounded, color: scheme.primary),
+                    tooltip: 'Download file',
+                  ),
+                IconButton(
+                  onPressed: () => _showFileDetails(file),
+                  icon: Icon(Icons.info_outline_rounded, color: scheme.primary),
+                  tooltip: 'File details',
+                ),
+              ],
             ),
           ),
         );
@@ -580,74 +690,55 @@ class _NotesTabState extends State<NotesTab> with TickerProviderStateMixin {
     );
   }
 
-  void _showFileDetails(_UploadItem item) {
+  void _showFileDetails(FileUploadModel file) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(item.filename),
+        title: Text(file.filename),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Remark: ${item.remark}'),
+            Text('Remark: ${file.remark}'),
             const SizedBox(height: 8),
-            Text('Category: ${item.category}'),
+            Text('Category: ${_getCategoryFromFilename(file.filename)}'),
             const SizedBox(height: 8),
-            Text('Status: ${item.status}'),
+            Text('Status: ${_getStatusText(file.status)}'),
+            if (file.fileSize != null) ...[
+              const SizedBox(height: 8),
+              Text('Size: ${(file.fileSize! / 1024).toStringAsFixed(1)} KB'),
+            ],
+            if (file.mimeType != null) ...[
+              const SizedBox(height: 8),
+              Text('Type: ${file.mimeType}'),
+            ],
             const SizedBox(height: 8),
             Text(
-                'Uploaded: ${DateFormat('MMM d, yyyy h:mm a').format(item.timestamp)}'),
+                'Uploaded: ${DateFormat('MMM d, yyyy h:mm a').format(file.createdAt)}'),
+            // 🆕 Show file URL if available
+            if (file.fileUrl != null && file.fileUrl!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('Storage: Supabase Storage'),
+              const SizedBox(height: 4),
+              SelectableText(
+                'URL: ${file.fileUrl}',
+                style: const TextStyle(fontSize: 10, color: Colors.blue),
+              ),
+            ],
           ],
         ),
         actions: [
+          if (file.fileUrl != null && file.fileUrl!.isNotEmpty)
+            TextButton(
+              onPressed: () => _downloadFile(file),
+              child: const Text('Download'),
+            ),
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );
   }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return Colors.green;
-      case 'pending':
-        return Colors.orange;
-      case 'rejected':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return Icons.check_circle_rounded;
-      case 'pending':
-        return Icons.schedule_rounded;
-      case 'rejected':
-        return Icons.cancel_rounded;
-      default:
-        return Icons.insert_drive_file_rounded;
-    }
-  }
-}
-
-class _UploadItem {
-  final String? id;
-  final String filename;
-  final String remark;
-  final String category;
-  final String status;
-  final DateTime timestamp;
-  _UploadItem({
-    this.id,
-    required this.filename,
-    required this.remark,
-    required this.category,
-    required this.status,
-    required this.timestamp,
-  });
 }

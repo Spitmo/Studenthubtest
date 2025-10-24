@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
 
 class SupabaseService {
   static const String supabaseUrl = 'https://qbutsawjtzvnoffkcsor.supabase.co';
@@ -246,9 +247,10 @@ class SupabaseService {
 
   static Future<List<Map<String, dynamic>>> getEvents() async {
     try {
-      final response = await client.from('events').select().order('created_at',
-          ascending:
-              false); // FIXED: Changed from event_date to created_at and set to descending
+      final response = await client
+          .from('events')
+          .select()
+          .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       return [];
@@ -261,18 +263,121 @@ class SupabaseService {
 
   // ==================== UPLOADS MANAGEMENT ====================
 
+  // 🆕 NEW: Actual file upload to Supabase Storage
+  static Future<String?> uploadFileToStorage({
+    required File file,
+    required String fileName,
+    required String userId,
+  }) async {
+    try {
+      print('📤 Uploading file to storage: $fileName');
+
+      // Create unique file path with user ID and timestamp
+      final fileExtension = fileName.split('.').last;
+      final uniqueFileName =
+          '${DateTime.now().millisecondsSinceEpoch}_$userId.$fileExtension';
+      final filePath = 'student-uploads/$uniqueFileName';
+
+      // Upload file to Supabase Storage
+      await client.storage.from('student-uploads').upload(filePath, file);
+
+      print('✅ File uploaded to storage: $filePath');
+
+      // Get public URL for the uploaded file
+      final publicUrl =
+          client.storage.from('student-uploads').getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (e) {
+      print('❌ Error uploading file to storage: $e');
+      return null;
+    }
+  }
+
+  // 🆕 NEW: Create upload with actual file upload
+  static Future<Map<String, dynamic>> createUploadWithFile({
+    required File file,
+    required String filename,
+    required String remark,
+    required String uploadedBy,
+  }) async {
+    try {
+      print('🚀 Starting file upload process...');
+
+      // Step 1: Upload actual file to Supabase Storage
+      final fileUrl = await uploadFileToStorage(
+        file: file,
+        fileName: filename,
+        userId: uploadedBy,
+      );
+
+      if (fileUrl == null) {
+        throw Exception('Failed to upload file to storage');
+      }
+
+      // Step 2: Create database entry with file URL
+      final response = await client
+          .from('uploads')
+          .insert({
+            'file_name': filename,
+            'file_url': fileUrl,
+            'remark': remark,
+            'student_id': uploadedBy,
+            'status': 'pending',
+            'created_at': DateTime.now().toIso8601String(),
+          })
+          .select()
+          .single();
+
+      print('✅ File upload completed successfully: $filename');
+      return response;
+    } catch (e) {
+      print('❌ Error in createUpload: $e');
+      rethrow;
+    }
+  }
+
+  // ✅ FIXED: Original method (keep this for backward compatibility)
   static Future<void> createUpload({
     required String filename,
     required String remark,
     required String uploadedBy,
   }) async {
-    await client.from('uploads').insert({
-      'file_name': filename,
-      'remark': remark,
-      'student_id': uploadedBy,
-      'status': 'pending',
-      'created_at': DateTime.now().toIso8601String(),
-    });
+    try {
+      await client.from('uploads').insert({
+        'file_name': filename,
+        'remark': remark,
+        'student_id': uploadedBy,
+        'status': 'pending',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      print('✅ Database entry created for: $filename');
+    } catch (e) {
+      print('❌ Error creating upload: $e');
+      rethrow;
+    }
+  }
+
+  // 🆕 NEW: Get file download URL
+  static String? getFileDownloadUrl(String filePath) {
+    try {
+      return client.storage.from('student-uploads').getPublicUrl(filePath);
+    } catch (e) {
+      print('❌ Error getting file download URL: $e');
+      return null;
+    }
+  }
+
+  // 🆕 NEW: Delete file from storage
+  static Future<bool> deleteFileFromStorage(String filePath) async {
+    try {
+      await client.storage.from('student-uploads').remove([filePath]);
+      print('✅ File deleted from storage: $filePath');
+      return true;
+    } catch (e) {
+      print('❌ Error deleting file from storage: $e');
+      return false;
+    }
   }
 
   static Future<List<Map<String, dynamic>>> getPendingUploads() async {
